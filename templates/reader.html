@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线阅读 - Calibre Web</title>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+    <style>
+        /* 主题颜色变量 - 默认经典主题 */
+        :root {
+            --bg-primary: linear-gradient(135deg, #faf7f2 0%, #f5f0e8 100%);
+            --bg-secondary: linear-gradient(135deg, #f5efe4 0%, #ebe5d9 100%);
+            --text-primary: #4a4033;
+            --text-secondary: #6b5d4f;
+            --border-color: rgba(139, 90, 43, 0.15);
+            --shadow: rgba(139, 90, 43, 0.08);
+            --header-bg: linear-gradient(135deg, #f5efe4 0%, #ebe5d9 100%);
+            --header-border: rgba(139, 90, 43, 0.15);
+            --btn-bg: rgba(139, 90, 43, 0.08);
+            --btn-hover-bg: rgba(139, 90, 43, 0.15);
+            --btn-border: rgba(139, 90, 43, 0.2);
+            --controls-bg: rgba(245, 239, 228, 0.98);
+            --controls-border: rgba(139, 90, 43, 0.2);
+        }
+
+        /* 现代简约主题 */
+        body[data-theme="modern"] {
+            --bg-primary: linear-gradient(135deg, #f9f7fc 0%, #f3f0f8 100%);
+            --bg-secondary: linear-gradient(135deg, #f3f0f8 0%, #ede9f4 100%);
+            --text-primary: #4a3d5a;
+            --text-secondary: #6b5d7f;
+            --border-color: rgba(147, 112, 219, 0.15);
+            --shadow: rgba(147, 112, 219, 0.08);
+            --header-bg: linear-gradient(135deg, #f3f0f8 0%, #ede9f4 100%);
+            --header-border: rgba(147, 112, 219, 0.15);
+            --btn-bg: rgba(147, 112, 219, 0.08);
+            --btn-hover-bg: rgba(147, 112, 219, 0.15);
+            --btn-border: rgba(147, 112, 219, 0.2);
+            --controls-bg: rgba(243, 240, 248, 0.98);
+            --controls-border: rgba(147, 112, 219, 0.2);
+        }
+
+        /* 深色主题 */
+        body[data-theme="dark"] {
+            --bg-primary: linear-gradient(135deg, #2d2d3a 0%, #25252f 100%);
+            --bg-secondary: linear-gradient(135deg, #35354a 0%, #2d2d40 100%);
+            --text-primary: #e8e8f0;
+            --text-secondary: #b8b8cc;
+            --border-color: rgba(139, 139, 179, 0.15);
+            --shadow: rgba(0, 0, 0, 0.3);
+            --header-bg: linear-gradient(135deg, #35354a 0%, #2d2d40 100%);
+            --header-border: rgba(139, 139, 179, 0.15);
+            --btn-bg: rgba(139, 139, 179, 0.15);
+            --btn-hover-bg: rgba(139, 139, 179, 0.25);
+            --btn-border: rgba(139, 139, 179, 0.3);
+            --controls-bg: rgba(53, 53, 74, 0.98);
+            --controls-border: rgba(139, 139, 179, 0.3);
+        }
+
+        /* 海洋主题 */
+        body[data-theme="ocean"] {
+            --bg-primary: linear-gradient(135deg, #f0f8fc 0%, #e8f4f8 100%);
+            --bg-secondary: linear-gradient(135deg, #e8f4f8 0%, #dff0f5 100%);
+            --text-primary: #2d4a5a;
+            --text-secondary: #4a6b7f;
+            --border-color: rgba(70, 130, 180, 0.15);
+            --shadow: rgba(70, 130, 180, 0.08);
+            --header-bg: linear-gradient(135deg, #e8f4f8 0%, #dff0f5 100%);
+            --header-border: rgba(70, 130, 180, 0.15);
+            --btn-bg: rgba(70, 130, 180, 0.08);
+            --btn-hover-bg: rgba(70, 130, 180, 0.15);
+            --btn-border: rgba(70, 130, 180, 0.2);
+            --controls-bg: rgba(232, 244, 248, 0.98);
+            --controls-border: rgba(70, 130, 180, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .reader-header {
+            background: var(--header-bg);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 15px var(--shadow);
+            border-bottom: 2px solid var(--header-border);
+        }
+
+        .reader-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .reader-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            background: var(--btn-bg);
+            color: var(--text-primary);
+            border: 2px solid var(--btn-border);
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background: var(--btn-hover-bg);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .reader-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* EPUB阅读器容器 */
+        #epub-viewer {
+            width: 100%;
+            height: 100%;
+            background: white;
+        }
+
+        /* 翻页动画效果 */
+        #epub-viewer.page-transitioning {
+            animation-duration: 0.4s;
+            animation-timing-function: ease-in-out;
+        }
+
+        /* 效果1: 淡入淡出 */
+        #epub-viewer.transition-fade {
+            animation-name: pageFade;
+        }
+
+        @keyframes pageFade {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        /* 效果2: 左滑动 */
+        #epub-viewer.transition-slide {
+            animation-name: pageSlide;
+        }
+
+        @keyframes pageSlide {
+            0% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            50% {
+                opacity: 0.3;
+                transform: translateX(-30px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* 效果3: 缩放 */
+        #epub-viewer.transition-zoom {
+            animation-name: pageZoom;
+        }
+
+        @keyframes pageZoom {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.95);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* 效果4: 翻页 */
+        #epub-viewer.transition-flip {
+            animation-name: pageFlip;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes pageFlip {
+            0% {
+                transform: rotateY(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: rotateY(90deg);
+                opacity: 0.3;
+            }
+            100% {
+                transform: rotateY(0deg);
+                opacity: 1;
+            }
+        }
+
+        /* 效果5: 无动画 */
+        #epub-viewer.transition-none {
+            animation: none;
+        }
+
+        /* 翻页效果选择器 */
+        .transition-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .transition-selector label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .transition-selector select {
+            background: var(--btn-bg);
+            color: var(--text-primary);
+            border: 2px solid var(--btn-border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .transition-selector select:hover {
+            background: var(--btn-hover-bg);
+        }
+
+        /* EPUB控制栏 */
+        .epub-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--controls-bg);
+            padding: 15px 25px;
+            border-radius: 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 8px 32px var(--shadow);
+            border: 2px solid var(--controls-border);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .epub-controls button {
+            background: var(--btn-bg);
+            color: var(--text-primary);
+            border: 2px solid var(--btn-border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .epub-controls button:hover {
+            background: var(--btn-hover-bg);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .epub-controls button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            color: var(--text-primary);
+            font-size: 14px;
+            min-width: 100px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .txt-container {
+            width: 100%;
+            height: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            overflow-y: auto;
+            box-shadow: 0 5px 30px var(--shadow);
+            color: var(--text-primary);
+            font-size: 16px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+
+        .error-message {
+            text-align: center;
+            color: var(--text-primary);
+            padding: 40px;
+        }
+
+        .error-message h2 {
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--text-primary);
+            font-size: 18px;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // 加载保存的主题
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'classic';
+            if (savedTheme !== 'classic') {
+                document.body.setAttribute('data-theme', savedTheme);
+            }
+        }
+        loadTheme();
+    </script>
+    <div class="reader-header">
+        <div class="reader-title" id="bookTitle">加载中...</div>
+        <div class="reader-actions">
+            <div class="transition-selector">
+                <label>翻页效果:</label>
+                <select id="transitionSelect" onchange="changeTransition(this.value)">
+                    <option value="fade">淡入淡出</option>
+                    <option value="slide">左滑动</option>
+                    <option value="zoom">缩放</option>
+                    <option value="flip">翻页</option>
+                    <option value="none">无动画</option>
+                </select>
+            </div>
+            <a href="#" class="btn" id="downloadBtn">📥 下载</a>
+            <a href="/dashboard" class="btn">← 返回</a>
+        </div>
+    </div>
+
+    <div class="reader-content" id="readerContent">
+        <div class="loading">正在加载...</div>
+    </div>
+
+    <!-- EPUB控制栏 -->
+    <div class="epub-controls" id="epubControls" style="display: none;">
+        <button onclick="prevPage()" id="prevBtn">← 上一页</button>
+        <span class="page-info" id="pageInfo">加载中...</span>
+        <button onclick="nextPage()" id="nextBtn">下一页 →</button>
+        <button onclick="toggleFullscreen()">全屏</button>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const bookId = urlParams.get('id');
+        let rendition = null;
+        let book = null;
+        let currentTransition = 'fade'; // 默认翻页效果
+
+        // 加载保存的翻页效果
+        function loadTransition() {
+            const savedTransition = localStorage.getItem('pageTransition') || 'fade';
+            currentTransition = savedTransition;
+            document.getElementById('transitionSelect').value = savedTransition;
+        }
+
+        // 切换翻页效果
+        function changeTransition(transition) {
+            currentTransition = transition;
+            localStorage.setItem('pageTransition', transition);
+        }
+
+        if (!bookId) {
+            document.getElementById('readerContent').innerHTML = `
+                <div class="error-message">
+                    <h2>错误</h2>
+                    <p>未指定书籍ID</p>
+                </div>
+            `;
+        } else {
+            loadTransition();
+            loadBook();
+        }
+
+        async function loadBook() {
+            try {
+                // 获取书籍信息
+                const response = await fetch(`/api/books/${bookId}`);
+                if (!response.ok) {
+                    throw new Error('无法加载书籍信息');
+                }
+
+                const bookInfo = await response.json();
+                document.getElementById('bookTitle').textContent = bookInfo.title;
+                document.getElementById('downloadBtn').href = `/api/books/${bookId}/download`;
+
+                // 根据文件格式显示不同的阅读器
+                const format = bookInfo.file_format ? bookInfo.file_format.toUpperCase() : '';
+                
+                if (format === 'PDF') {
+                    // PDF使用浏览器内置阅读器
+                    document.getElementById('readerContent').innerHTML = `
+                        <iframe src="/api/books/${bookId}/preview" type="application/pdf"></iframe>
+                    `;
+                } else if (format === 'TXT') {
+                    // TXT直接显示文本
+                    const textResponse = await fetch(`/api/books/${bookId}/preview`);
+                    const text = await textResponse.text();
+                    document.getElementById('readerContent').innerHTML = `
+                        <div class="txt-container">${text}</div>
+                    `;
+                } else if (format === 'EPUB') {
+                    // 使用EPUB.js阅读器
+                    await renderEpub(`/api/books/${bookId}/preview`);
+                } else if (format === 'MOBI' || format === 'AZW' || format === 'AZW3') {
+                    // MOBI格式提示转换
+                    document.getElementById('readerContent').innerHTML = `
+                        <div class="error-message">
+                            <h2>📚 ${format}格式</h2>
+                            <p>${format}格式需要使用专用阅读器（如Kindle）</p>
+                            <p style="margin-top: 20px;">
+                                <a href="/api/books/${bookId}/download" class="btn">点击下载后使用本地阅读器打开</a>
+                            </p>
+                            <p style="margin-top: 10px; color: #d4a574; font-size: 14px;">
+                                提示：可以使用Calibre将${format}转换为EPUB格式以便在线阅读
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('readerContent').innerHTML = `
+                        <div class="error-message">
+                            <h2>不支持的格式</h2>
+                            <p>该书籍格式 (${format || '未知'}) 暂不支持在线预览</p>
+                            <p style="margin-top: 20px;">
+                                <a href="/api/books/${bookId}/download" class="btn">点击下载文件</a>
+                            </p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('readerContent').innerHTML = `
+                    <div class="error-message">
+                        <h2>加载失败</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 渲染EPUB
+        async function renderEpub(url) {
+            try {
+                // 创建EPUB阅读器容器
+                document.getElementById('readerContent').innerHTML = '<div id="epub-viewer"></div>';
+                
+                // 先获取EPUB文件作为ArrayBuffer
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('无法加载EPUB文件');
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                
+                // 使用ArrayBuffer初始化EPUB.js
+                book = ePub(arrayBuffer);
+                
+                // 渲染到页面
+                rendition = book.renderTo("epub-viewer", {
+                    width: "100%",
+                    height: "100%",
+                    spread: "always"
+                });
+                
+                rendition.display();
+                
+                // 显示控制栏
+                document.getElementById('epubControls').style.display = 'flex';
+                
+                // 更新页码信息
+                rendition.on('relocated', function(location) {
+                    const current = location.start.displayed.page;
+                    const total = location.start.displayed.total;
+                    document.getElementById('pageInfo').textContent = `${current} / ${total}`;
+                    
+                    // 更新按钮状态
+                    document.getElementById('prevBtn').disabled = location.atStart;
+                    document.getElementById('nextBtn').disabled = location.atEnd;
+                });
+                
+                // 键盘导航
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'ArrowLeft') {
+                        prevPage();
+                    } else if (e.key === 'ArrowRight') {
+                        nextPage();
+                    }
+                });
+                
+            } catch (error) {
+                console.error('EPUB加载失败:', error);
+                document.getElementById('readerContent').innerHTML = `
+                    <div class="error-message">
+                        <h2>EPUB加载失败</h2>
+                        <p>${error.message}</p>
+                        <p style="margin-top: 20px;">
+                            <a href="/api/books/${bookId}/download" class="btn">点击下载文件</a>
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // 上一页
+        function prevPage() {
+            if (rendition) {
+                const viewer = document.getElementById('epub-viewer');
+                viewer.classList.remove('transition-fade', 'transition-slide', 'transition-zoom', 'transition-flip', 'transition-none');
+                viewer.classList.add('page-transitioning', `transition-${currentTransition}`);
+                rendition.prev();
+                setTimeout(() => {
+                    viewer.classList.remove('page-transitioning', `transition-${currentTransition}`);
+                }, 400);
+            }
+        }
+
+        // 下一页
+        function nextPage() {
+            if (rendition) {
+                const viewer = document.getElementById('epub-viewer');
+                viewer.classList.remove('transition-fade', 'transition-slide', 'transition-zoom', 'transition-flip', 'transition-none');
+                viewer.classList.add('page-transitioning', `transition-${currentTransition}`);
+                rendition.next();
+                setTimeout(() => {
+                    viewer.classList.remove('page-transitioning', `transition-${currentTransition}`);
+                }, 400);
+            }
+        }
+
+        // 切换全屏
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+    </script>
+</body>
+</html>

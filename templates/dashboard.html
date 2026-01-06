@@ -1,0 +1,2728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calibre Web - 图书管理 v2.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* 淡雅米白主题 - 默认 */
+            --primary-bg: #faf8f5;
+            --primary-gradient: linear-gradient(180deg, #ffffff 0%, #faf8f5 100%);
+            --navbar-bg: linear-gradient(135deg, #f5f1ea 0%, #e8e3da 100%);
+            --navbar-border: #d4cec3;
+            --text-primary: #5a5550;
+            --text-secondary: #8b8378;
+            --card-bg: linear-gradient(135deg, #ffffff 0%, #f9f7f4 100%);
+            --card-border: #e8e3da;
+            --book-shelf: linear-gradient(180deg, #fdfcfb 0%, #f5f3f0 100%);
+            --book-cover: linear-gradient(135deg, #e8dfd0 0%, #d4c4ae 100%);
+            --book-info-bg: linear-gradient(180deg, #ffffff 0%, #f9f7f4 100%);
+            --book-title-color: #3d3935;
+            --book-author-color: #7a7268;
+            --shadow-light: rgba(0, 0, 0, 0.08);
+            --shadow-medium: rgba(0, 0, 0, 0.12);
+            /* 按钮颜色 - 极浅柔和版 */
+            --btn-edit-bg: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            --btn-edit-color: #059669;
+            --btn-edit-border: #a7f3d0;
+            --btn-delete-bg: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            --btn-delete-color: #dc2626;
+            --btn-delete-border: #fecaca;
+            --btn-preview-bg: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            --btn-preview-color: #2563eb;
+            --btn-preview-border: #bfdbfe;
+            --btn-download-bg: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            --btn-download-color: #b45309;
+            --btn-download-border: #fde68a;
+            /* 状态按钮颜色 */
+            --btn-favorite-color: #f472b6;
+            --btn-favorite-border: #fce7f3;
+            --btn-favorite-hover-bg: #fdf2f8;
+            --btn-favorite-hover-border: #fbcfe8;
+            --btn-favorite-active-bg: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+            --btn-favorite-active-border: #f9a8d4;
+            --btn-favorite-active-color: #db2777;
+            --btn-read-color: #34d399;
+            --btn-read-border: #d1fae5;
+            --btn-read-hover-bg: #f0fdf4;
+            --btn-read-hover-border: #a7f3d0;
+            --btn-read-active-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            --btn-read-active-border: #6ee7b7;
+            --btn-read-active-color: #059669;
+        }
+
+        body[data-theme="modern"] {
+            /* 薰衣草紫主题 */
+            --primary-bg: #f8f7fc;
+            --primary-gradient: linear-gradient(180deg, #fdfcff 0%, #f8f7fc 100%);
+            --navbar-bg: linear-gradient(135deg, #e9e5f5 0%, #dcd7ed 100%);
+            --navbar-border: #c9c0e0;
+            --text-primary: #4a4258;
+            --text-secondary: #7b7089;
+            --card-bg: linear-gradient(135deg, #f5f2ff 0%, #ede9f9 100%);
+            --card-border: #dcd7ed;
+            --book-shelf: linear-gradient(180deg, #faf8fe 0%, #f3f1f9 100%);
+            --book-cover: linear-gradient(135deg, #d8cff0 0%, #bfb3dd 100%);
+            --book-info-bg: linear-gradient(180deg, #ffffff 0%, #f8f6fc 100%);
+            --book-title-color: #3d3748;
+            --book-author-color: #6e6579;
+            --shadow-light: rgba(123, 97, 255, 0.08);
+            --shadow-medium: rgba(123, 97, 255, 0.12);
+            /* 按钮颜色 - 极浅柔和版 */
+            --btn-edit-bg: linear-gradient(135deg, #f7fee7 0%, #ecfccb 100%);
+            --btn-edit-color: #65a30d;
+            --btn-edit-border: #d9f99d;
+            --btn-delete-bg: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+            --btn-delete-color: #be123c;
+            --btn-delete-border: #fecdd3;
+            --btn-preview-bg: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+            --btn-preview-color: #4f46e5;
+            --btn-preview-border: #c7d2fe;
+            --btn-download-bg: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+            --btn-download-color: #ca8a04;
+            --btn-download-border: #fef08a;
+            /* 状态按钮颜色 */
+            --btn-favorite-color: #ec4899;
+            --btn-favorite-border: #fce7f3;
+            --btn-favorite-hover-bg: #fdf2f8;
+            --btn-favorite-hover-border: #fbcfe8;
+            --btn-favorite-active-bg: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+            --btn-favorite-active-border: #f9a8d4;
+            --btn-favorite-active-color: #db2777;
+            --btn-read-color: #10b981;
+            --btn-read-border: #d1fae5;
+            --btn-read-hover-bg: #f0fdf4;
+            --btn-read-hover-border: #a7f3d0;
+            --btn-read-active-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            --btn-read-active-border: #6ee7b7;
+            --btn-read-active-color: #059669;
+        }
+
+        body[data-theme="dark"] {
+            /* 现代深色主题 */
+            --primary-bg: #1a1b1e;
+            --primary-gradient: linear-gradient(180deg, #25262b 0%, #1a1b1e 100%);
+            --navbar-bg: linear-gradient(135deg, #2c2e33 0%, #25262b 100%);
+            --navbar-border: #373a40;
+            --text-primary: #e9ecef;
+            --text-secondary: #adb5bd;
+            --card-bg: linear-gradient(135deg, #2c2e33 0%, #25262b 100%);
+            --card-border: #373a40;
+            --book-shelf: linear-gradient(180deg, #25262b 0%, #1f2023 100%);
+            --book-cover: linear-gradient(135deg, #495057 0%, #373a40 100%);
+            --book-info-bg: linear-gradient(180deg, #2c2e33 0%, #25262b 100%);
+            --book-title-color: #f1f3f5;
+            --book-author-color: #adb5bd;
+            --shadow-light: rgba(0, 0, 0, 0.3);
+            --shadow-medium: rgba(0, 0, 0, 0.4);
+            /* 按钮颜色 - 极浅柔和版 */
+            --btn-edit-bg: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+            --btn-edit-color: #d1fae5;
+            --btn-edit-border: #6ee7b7;
+            --btn-delete-bg: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            --btn-delete-color: #fee2e2;
+            --btn-delete-border: #fca5a5;
+            --btn-preview-bg: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            --btn-preview-color: #dbeafe;
+            --btn-preview-border: #93c5fd;
+            --btn-download-bg: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            --btn-download-color: #fef3c7;
+            --btn-download-border: #fcd34d;
+            /* 状态按钮颜色 */
+            --btn-favorite-color: #f9a8d4;
+            --btn-favorite-border: #9f1239;
+            --btn-favorite-hover-bg: #831843;
+            --btn-favorite-hover-border: #be185d;
+            --btn-favorite-active-bg: linear-gradient(135deg, #db2777 0%, #be185d 100%);
+            --btn-favorite-active-border: #ec4899;
+            --btn-favorite-active-color: #fce7f3;
+            --btn-read-color: #a7f3d0;
+            --btn-read-border: #047857;
+            --btn-read-hover-bg: #065f46;
+            --btn-read-hover-border: #059669;
+            --btn-read-active-bg: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --btn-read-active-border: #34d399;
+            --btn-read-active-color: #d1fae5;
+        }
+
+        body[data-theme="ocean"] {
+            /* 天空蓝主题 */
+            --primary-bg: #f7fafb;
+            --primary-gradient: linear-gradient(180deg, #fcfeff 0%, #f7fafb 100%);
+            --navbar-bg: linear-gradient(135deg, #e3f2f7 0%, #d4e9f0 100%);
+            --navbar-border: #b8d8e3;
+            --text-primary: #2d5566;
+            --text-secondary: #5b7f8f;
+            --card-bg: linear-gradient(135deg, #f0f9fc 0%, #e3f2f7 100%);
+            --card-border: #cfe5ed;
+            --book-shelf: linear-gradient(180deg, #f9fcfd 0%, #f2f8fa 100%);
+            --book-cover: linear-gradient(135deg, #c5e3ef 0%, #a8d5e2 100%);
+            --book-info-bg: linear-gradient(180deg, #ffffff 0%, #f5fbfc 100%);
+            --book-title-color: #2d4f5c;
+            --book-author-color: #5b7f8f;
+            --shadow-light: rgba(45, 85, 102, 0.08);
+            --shadow-medium: rgba(45, 85, 102, 0.12);
+            /* 按钮颜色 - 极浅柔和版 */
+            --btn-edit-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            --btn-edit-color: #047857;
+            --btn-edit-border: #6ee7b7;
+            --btn-delete-bg: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            --btn-delete-color: #b91c1c;
+            --btn-delete-border: #fca5a5;
+            --btn-preview-bg: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            --btn-preview-color: #075985;
+            --btn-preview-border: #7dd3fc;
+            --btn-download-bg: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+            --btn-download-color: #9a3412;
+            --btn-download-border: #fdba74;
+            /* 状态按钮颜色 */
+            --btn-favorite-color: #f43f5e;
+            --btn-favorite-border: #ffe4e6;
+            --btn-favorite-hover-bg: #fff1f2;
+            --btn-favorite-hover-border: #fecdd3;
+            --btn-favorite-active-bg: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
+            --btn-favorite-active-border: #fda4af;
+            --btn-favorite-active-color: #e11d48;
+            --btn-read-color: #10b981;
+            --btn-read-border: #d1fae5;
+            --btn-read-hover-bg: #ecfdf5;
+            --btn-read-hover-border: #a7f3d0;
+            --btn-read-active-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            --btn-read-active-border: #6ee7b7;
+            --btn-read-active-color: #059669;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--primary-bg);
+            background-image: var(--primary-gradient);
+            position: relative;
+            transition: all 0.3s ease;
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(0deg, 
+                    rgba(139, 90, 43, 0.03) 0px, 
+                    transparent 1px, 
+                    transparent 2px, 
+                    rgba(139, 90, 43, 0.03) 3px),
+                repeating-linear-gradient(90deg, 
+                    rgba(139, 90, 43, 0.03) 0px, 
+                    transparent 1px, 
+                    transparent 2px, 
+                    rgba(139, 90, 43, 0.03) 3px);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            background: var(--navbar-bg);
+            color: var(--text-primary);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px var(--shadow-light);
+            border-bottom: 1px solid var(--navbar-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .navbar-brand {
+            font-size: 24px;
+            font-weight: 600;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-logout {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-logout:hover {
+            box-shadow: 0 4px 12px var(--shadow-light);
+            transform: translateY(-2px);
+            border-color: var(--text-secondary);
+        }
+
+        /* 容器 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px var(--shadow-light);
+            transition: all 0.3s ease;
+            border: 1px solid var(--card-border);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px var(--shadow-medium);
+        }
+
+        .stat-card h3 {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 主题切换器 */
+        .theme-switcher {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .theme-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .theme-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .theme-btn.active {
+            border-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+
+        .theme-btn.active::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .theme-btn[data-theme="classic"] {
+            background: linear-gradient(135deg, #e8dfd0 0%, #d4c4ae 100%);
+        }
+
+        .theme-btn[data-theme="modern"] {
+            background: linear-gradient(135deg, #d8cff0 0%, #bfb3dd 100%);
+        }
+
+        .theme-btn[data-theme="dark"] {
+            background: linear-gradient(135deg, #495057 0%, #373a40 100%);
+        }
+
+        .theme-btn[data-theme="ocean"] {
+            background: linear-gradient(135deg, #c5e3ef 0%, #a8d5e2 100%);
+        }
+
+        /* 搜索和操作栏 */
+        .action-bar {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 4px 20px var(--shadow-light);
+            border: 1px solid var(--card-border);
+        }
+
+        .search-box {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--book-info-bg);
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--text-secondary);
+            box-shadow: 0 0 0 3px var(--shadow-light);
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .btn-primary {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            padding: 12px 25px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px var(--shadow-light);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px var(--shadow-medium);
+            border-color: var(--text-secondary);
+        }
+
+        /* 图书网格 - 书架效果 */
+        .books-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 30px 20px;
+            padding: 30px 20px;
+            background: var(--book-shelf);
+            border-radius: 16px;
+            box-shadow: inset 0 2px 8px var(--shadow-light);
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        /* 书架层板效果 */
+        .books-grid::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 15px;
+            background: var(--card-bg);
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 2px 8px var(--shadow-light);
+        }
+
+        .book-card {
+            background: transparent;
+            border-radius: 8px;
+            overflow: visible;
+            transition: transform 0.3s;
+            cursor: pointer;
+            position: relative;
+            perspective: 1000px;
+        }
+
+        .book-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            z-index: 10;
+        }
+
+        .book-cover {
+            width: 100%;
+            height: 260px;
+            background: var(--book-cover);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: var(--text-primary);
+            border-radius: 8px 8px 0 0;
+            box-shadow: 
+                0 0 0 1px var(--card-border),
+                0 4px 12px var(--shadow-light);
+            position: relative;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .book-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                rgba(0, 0, 0, 0.3) 0%, 
+                transparent 100%);
+        }
+
+        .book-cover::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 10px;
+            height: 100%;
+            background: linear-gradient(270deg, 
+                rgba(0, 0, 0, 0.4) 0%, 
+                transparent 100%);
+        }
+
+        .book-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .book-info {
+            padding: 15px;
+            background: var(--book-info-bg);
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 8px var(--shadow-light);
+        }
+
+        .book-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--book-title-color);
+            margin-bottom: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.3;
+            height: 2.6em;
+        }
+
+        .book-author {
+            color: var(--book-author-color);
+            font-size: 12px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .book-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .tag {
+            background: var(--card-bg);
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+        }
+
+        .book-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .btn-small {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 8px 10px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-small::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.4s, height 0.4s;
+        }
+
+        .btn-small:hover::before {
+            width: 200%;
+            height: 200%;
+        }
+
+        .btn-small .btn-icon {
+            font-size: 13px;
+            line-height: 1;
+        }
+
+        .btn-small .btn-text {
+            font-size: 11px;
+            line-height: 1;
+        }
+
+        .btn-edit {
+            background: var(--btn-edit-bg);
+            color: var(--btn-edit-color);
+            border-color: var(--btn-edit-border);
+        }
+
+        .btn-delete {
+            background: var(--btn-delete-bg);
+            color: var(--btn-delete-color);
+            border-color: var(--btn-delete-border);
+        }
+
+        .btn-preview {
+            background: var(--btn-preview-bg);
+            color: var(--btn-preview-color);
+            border-color: var(--btn-preview-border);
+        }
+
+        .btn-download {
+            background: var(--btn-download-bg);
+            color: var(--btn-download-color);
+            border-color: var(--btn-download-border);
+        }
+
+        .btn-small:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow-light);
+        }
+
+        .btn-small:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px var(--shadow-light);
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .book-detail-view {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .book-detail-cover {
+            flex-shrink: 0;
+            width: 200px;
+            height: 280px;
+            background: linear-gradient(135deg, #8b4513 0%, #654321 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .book-detail-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .book-detail-info {
+            flex: 1;
+        }
+
+        .book-detail-info h2 {
+            margin-bottom: 15px;
+            color: #2c1810;
+        }
+
+        .book-detail-info .info-row {
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        .book-detail-info .info-label {
+            font-weight: 600;
+            color: #8b5a2b;
+            display: inline-block;
+            width: 80px;
+        }
+
+        .book-detail-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .book-detail-actions .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+
+        .book-detail-actions .btn-primary-action {
+            background: #2196F3;
+            color: white;
+            border: none;
+        }
+
+        .book-detail-actions .btn-secondary-action {
+            background: #FF9800;
+            color: white;
+            border: none;
+        }
+
+        .book-detail-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--book-info-bg);
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--text-secondary);
+            box-shadow: 0 0 0 3px var(--shadow-light);
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            padding: 8px 15px;
+            border: 2px solid var(--card-border);
+            background: var(--book-info-bg);
+            color: var(--book-title-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .page-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-btn.active {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border-color: var(--navbar-border);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            color: var(--text-primary);
+            padding: 8px 15px;
+            font-weight: 600;
+        }
+
+        /* 导入状态栏 */
+        .import-status-bar {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 15px;
+            background: rgba(102, 126, 234, 0.15);
+            border-radius: 20px;
+            font-size: 13px;
+            max-width: 450px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .import-status-bar.active {
+            display: flex;
+        }
+
+        .import-status-bar .status-icon {
+            font-size: 16px;
+            animation: spin 2s linear infinite;
+        }
+
+        .import-status-bar.completed .status-icon {
+            animation: none;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .import-status-bar .status-text {
+            flex: 1;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .import-status-bar .status-progress {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            height: 6px;
+            width: 100px;
+            overflow: hidden;
+        }
+
+        .import-status-bar .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            transition: width 0.3s;
+            border-radius: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            color: var(--text-primary);
+        }
+
+        /* 侧边栏样式 */
+        .main-layout {
+            display: flex;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 220px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-menu {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 2px 20px var(--shadow-light);
+            border: 1px solid var(--card-border);
+        }
+
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--card-border);
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .sidebar-item:hover {
+            background: var(--book-shelf);
+            color: var(--text-primary);
+        }
+
+        .sidebar-item.active {
+            background: var(--book-cover);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .sidebar-item .icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .content-area {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* 书籍状态按钮 */
+        .book-status-btns {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .btn-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1.5px solid;
+            background: transparent;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+        }
+
+        .btn-status:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow-light);
+        }
+
+        .btn-status:active {
+            transform: translateY(0);
+        }
+
+        .btn-status .status-icon {
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .btn-status .status-text {
+            font-size: 10px;
+            line-height: 1;
+        }
+
+        .btn-favorite {
+            color: var(--btn-favorite-color);
+            border-color: var(--btn-favorite-border);
+        }
+
+        .btn-favorite:hover {
+            background: var(--btn-favorite-hover-bg);
+            border-color: var(--btn-favorite-hover-border);
+        }
+
+        .btn-favorite.active {
+            background: var(--btn-favorite-active-bg);
+            border-color: var(--btn-favorite-active-border);
+            color: var(--btn-favorite-active-color);
+            font-weight: 600;
+        }
+
+        .btn-read {
+            color: var(--btn-read-color);
+            border-color: var(--btn-read-border);
+        }
+
+        .btn-read:hover {
+            background: var(--btn-read-hover-bg);
+            border-color: var(--btn-read-hover-border);
+        }
+
+        .btn-read.active {
+            background: var(--btn-read-active-bg);
+            border-color: var(--btn-read-active-border);
+            color: var(--btn-read-active-color);
+            font-weight: 600;
+        }
+
+        /* ================================ */
+        /* 移动端响应式优化 */
+        /* ================================ */
+
+        /* 平板设备 (≤1024px) */
+        @media (max-width: 1024px) {
+            .container {
+                padding: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+            }
+
+            .books-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 25px 15px;
+            }
+
+            .book-cover {
+                height: 230px;
+            }
+        }
+
+        /* 移动设备 (≤768px) */
+        @media (max-width: 768px) {
+            /* 导航栏优化 */
+            .navbar {
+                padding: 12px 15px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .navbar-brand {
+                font-size: 18px;
+                flex: 1;
+            }
+
+            .navbar-user {
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .theme-switcher {
+                gap: 6px;
+            }
+
+            .theme-btn {
+                width: 28px;
+                height: 28px;
+            }
+
+            .btn-logout {
+                padding: 6px 15px;
+                font-size: 13px;
+            }
+
+            /* 容器优化 */
+            .container {
+                padding: 15px;
+            }
+
+            /* 统计卡片 */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .stat-card {
+                padding: 18px;
+            }
+
+            .stat-card h3 {
+                font-size: 12px;
+            }
+
+            .stat-card .number {
+                font-size: 28px;
+            }
+
+            /* 搜索和操作栏 */
+            .action-bar {
+                flex-direction: column;
+                padding: 15px;
+                gap: 12px;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .btn-primary {
+                width: 100%;
+                padding: 12px;
+                text-align: center;
+            }
+
+            /* 图书网格 */
+            .books-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 20px 12px;
+                padding: 20px 12px;
+            }
+
+            .book-cover {
+                height: 200px;
+            }
+
+            .book-info {
+                padding: 12px;
+            }
+
+            .book-title {
+                font-size: 13px;
+            }
+
+            .book-author {
+                font-size: 11px;
+            }
+
+            .tag {
+                font-size: 9px;
+                padding: 2px 6px;
+            }
+
+            .btn-small {
+                font-size: 10px;
+                padding: 6px 8px;
+            }
+
+            .btn-small .btn-text {
+                font-size: 10px;
+            }
+
+            .btn-status {
+                padding: 5px 6px;
+            }
+
+            .btn-status .status-text {
+                font-size: 9px;
+            }
+
+            /* 模态框优化 */
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+                max-height: 85vh;
+            }
+
+            .book-detail-view {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .book-detail-cover {
+                width: 100%;
+                max-width: 200px;
+                height: 280px;
+                margin: 0 auto;
+            }
+
+            .book-detail-info h2 {
+                font-size: 20px;
+            }
+
+            .book-detail-actions {
+                gap: 8px;
+            }
+
+            .book-detail-actions .btn {
+                flex: 1;
+                min-width: 100px;
+                padding: 10px 15px;
+                text-align: center;
+            }
+
+            /* 分页 */
+            .pagination {
+                gap: 8px;
+            }
+
+            .page-btn {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+
+            .page-info {
+                font-size: 13px;
+                padding: 6px 10px;
+            }
+
+            /* 表单 */
+            .form-group label {
+                font-size: 13px;
+            }
+
+            .form-group input,
+            .form-group textarea {
+                font-size: 14px;
+                padding: 10px;
+            }
+
+            /* 导入状态栏 */
+            .import-status-bar {
+                max-width: 100%;
+                font-size: 12px;
+            }
+
+            /* 侧边栏隐藏 */
+            .main-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+        }
+
+        /* 小屏手机 (≤480px) */
+        @media (max-width: 480px) {
+            /* 导航栏 */
+            .navbar {
+                padding: 10px;
+            }
+
+            .navbar-brand {
+                font-size: 16px;
+            }
+
+            .theme-switcher {
+                order: 3;
+                width: 100%;
+                justify-content: center;
+                padding-top: 8px;
+                border-top: 1px solid var(--navbar-border);
+            }
+
+            .theme-btn {
+                width: 32px;
+                height: 32px;
+            }
+
+            .btn-logout {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+
+            /* 容器 */
+            .container {
+                padding: 10px;
+            }
+
+            /* 统计卡片 */
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .stat-card {
+                padding: 15px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .stat-card h3 {
+                font-size: 13px;
+                margin-bottom: 0;
+            }
+
+            .stat-card .number {
+                font-size: 24px;
+            }
+
+            /* 搜索和操作栏 */
+            .action-bar {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            /* 图书网格 */
+            .books-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 15px 10px;
+                padding: 15px 10px;
+                justify-items: stretch;
+            }
+
+            .book-card {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .book-cover {
+                height: 180px;
+                font-size: 36px;
+            }
+
+            .book-info {
+                padding: 10px;
+            }
+
+            .book-title {
+                font-size: 12px;
+                line-height: 1.2;
+                height: 2.4em;
+            }
+
+            .book-author {
+                font-size: 10px;
+                margin-bottom: 6px;
+            }
+
+            .tag {
+                font-size: 8px;
+                padding: 2px 5px;
+            }
+
+            .book-actions {
+                gap: 5px;
+            }
+
+            .btn-small {
+                font-size: 9px;
+                padding: 6px 6px;
+                min-width: 40px;
+            }
+
+            .btn-small .btn-icon {
+                font-size: 11px;
+            }
+
+            .btn-small .btn-text {
+                display: none;
+            }
+
+            .book-status-btns {
+                gap: 5px;
+            }
+
+            .btn-status {
+                padding: 5px 4px;
+            }
+
+            .btn-status .status-icon {
+                font-size: 13px;
+            }
+
+            .btn-status .status-text {
+                font-size: 8px;
+            }
+
+            /* 模态框 */
+            .modal-content {
+                width: 98%;
+                padding: 15px;
+                border-radius: 15px;
+            }
+
+            .modal-header h2 {
+                font-size: 18px;
+            }
+
+            .btn-close {
+                font-size: 20px;
+            }
+
+            .book-detail-cover {
+                width: 100%;
+                max-width: 180px;
+                height: 250px;
+            }
+
+            .book-detail-info h2 {
+                font-size: 18px;
+            }
+
+            .book-detail-info .info-row {
+                font-size: 13px;
+            }
+
+            .book-detail-info .info-label {
+                width: 70px;
+                font-size: 12px;
+            }
+
+            .book-detail-actions {
+                flex-direction: column;
+            }
+
+            .book-detail-actions .btn {
+                width: 100%;
+            }
+
+            /* 分页 */
+            .pagination {
+                gap: 5px;
+            }
+
+            .page-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .page-info {
+                font-size: 12px;
+                padding: 6px 8px;
+            }
+
+            /* 表单 */
+            .form-group {
+                margin-bottom: 15px;
+            }
+
+            .form-group label {
+                font-size: 12px;
+                margin-bottom: 6px;
+            }
+
+            .form-group input,
+            .form-group textarea {
+                font-size: 13px;
+                padding: 10px;
+            }
+
+            .form-group textarea {
+                min-height: 80px;
+            }
+
+            /* 导入状态栏 */
+            .import-status-bar {
+                padding: 6px 12px;
+                font-size: 11px;
+                flex-wrap: wrap;
+            }
+
+            .import-status-bar .status-progress {
+                width: 100%;
+                margin-top: 5px;
+            }
+
+            /* 空状态 */
+            .empty-state {
+                padding: 40px 15px;
+            }
+
+            .empty-state-icon {
+                font-size: 60px;
+            }
+
+            .empty-state h3 {
+                font-size: 16px;
+            }
+        }
+
+        /* 超小屏手机 (≤360px) */
+        @media (max-width: 360px) {
+            .navbar-brand {
+                font-size: 14px;
+            }
+
+            .books-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding: 12px 8px;
+            }
+
+            .book-cover {
+                height: 240px;
+            }
+
+            .stat-card .number {
+                font-size: 20px;
+            }
+        }
+
+        /* 触摸设备优化 */
+        @media (hover: none) and (pointer: coarse) {
+            /* 增加触摸目标大小 */
+            .btn-small,
+            .btn-status,
+            .page-btn,
+            .theme-btn {
+                min-width: 44px;
+                min-height: 44px;
+            }
+
+            /* 移除悬停效果 */
+            .book-card:hover {
+                transform: none;
+            }
+
+            /* 触摸反馈 */
+            .book-card:active {
+                transform: scale(0.98);
+                transition: transform 0.1s;
+            }
+
+            .btn-primary:active,
+            .btn-small:active,
+            .btn-logout:active,
+            .page-btn:active {
+                transform: scale(0.95);
+            }
+        }
+
+        /* 横屏模式优化 */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .books-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
+            .book-cover {
+                height: 170px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <div class="navbar">
+        <div class="navbar-brand">📚 Calibre Web</div>
+        <div class="navbar-user">
+            <div class="import-status-bar" id="importStatusBar">
+                <span class="status-icon">⚙️</span>
+                <span class="status-text" id="importStatusText">正在导入...</span>
+                <div class="status-progress">
+                    <div class="progress-fill" id="importProgressFill" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="theme-switcher">
+                <button class="theme-btn active" data-theme="classic" onclick="switchTheme('classic')" title="木质书架"></button>
+                <button class="theme-btn" data-theme="modern" onclick="switchTheme('modern')" title="现代简约"></button>
+                <button class="theme-btn" data-theme="dark" onclick="switchTheme('dark')" title="深色主题"></button>
+                <button class="theme-btn" data-theme="ocean" onclick="switchTheme('ocean')" title="海洋主题"></button>
+            </div>
+            <button class="btn-primary" id="userManageBtn" onclick="openUserManageModal()" style="display: none; padding: 8px 15px; font-size: 13px;">👥 用户管理</button>
+            <span id="username"></span>
+            <button class="btn-logout" onclick="logout()">退出登录</button>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <div class="main-layout">
+            <!-- 左侧导航栏 -->
+            <div class="sidebar">
+                <div class="sidebar-menu">
+                    <div class="sidebar-title">📖 书库分类</div>
+                    <div class="sidebar-item active" data-filter="all" onclick="filterBooks('all')">
+                        <span class="icon">📚</span>
+                        <span>全部图书</span>
+                    </div>
+                    <div class="sidebar-item" data-filter="favorites" onclick="filterBooks('favorites')">
+                        <span class="icon">❤️</span>
+                        <span>我的收藏</span>
+                    </div>
+                    <div class="sidebar-item" data-filter="read" onclick="filterBooks('read')">
+                        <span class="icon">✅</span>
+                        <span>已读完成</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主内容区域 -->
+            <div class="content-area">
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>总图书数</h3>
+                <div class="number" id="totalBooks">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>总用户数</h3>
+                <div class="number" id="totalUsers">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>当前页面</h3>
+                <div class="number" id="currentPage">1</div>
+            </div>
+        </div>
+
+        <!-- 搜索和操作栏 -->
+        <div class="action-bar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索书名、作者、ISBN...">
+            </div>
+            <button class="btn-primary" onclick="openAddModal()">+ 添加图书</button>
+        </div>
+
+        <!-- 图书网格 -->
+        <div class="books-grid" id="booksGrid"></div>
+
+        <!-- 分页 -->
+        <div class="pagination" id="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- 图书详情模态框 -->
+    <div class="modal" id="bookDetailModal">
+        <div class="modal-content" id="bookDetailContent">
+            <!-- 动态加载详情内容 -->
+        </div>
+    </div>
+
+    <!-- 添加/编辑图书模态框 -->
+    <div class="modal" id="bookEditModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">添加图书</h2>
+                <button class="btn-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="bookForm">
+                <input type="hidden" id="bookId">
+                <div class="form-group">
+                    <label>书名 *</label>
+                    <input type="text" id="title" required>
+                </div>
+                <div class="form-group">
+                    <label>作者</label>
+                    <input type="text" id="author">
+                </div>
+                <div class="form-group">
+                    <label>出版社</label>
+                    <input type="text" id="publisher">
+                </div>
+                <div class="form-group">
+                    <label>ISBN</label>
+                    <input type="text" id="isbn">
+                </div>
+                <div class="form-group">
+                    <label>出版日期</label>
+                    <input type="date" id="publicationDate">
+                </div>
+                <div class="form-group">
+                    <label>语言</label>
+                    <input type="text" id="language" value="中文">
+                </div>
+                <div class="form-group">
+                    <label>标签（用逗号分隔）</label>
+                    <input type="text" id="tags" placeholder="例如：小说,文学,经典">
+                </div>
+                <div class="form-group">
+                    <label>评分 (0-5)</label>
+                    <input type="number" id="rating" min="0" max="5" step="0.1" value="0">
+                </div>
+                <div class="form-group">
+                    <label>简介</label>
+                    <textarea id="description"></textarea>
+                </div>
+                <button type="submit" class="btn-primary">保存</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 用户管理模态框 -->
+    <div class="modal" id="userManageModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>👥 用户管理</h2>
+                <button class="btn-close" onclick="closeUserManageModal()">×</button>
+            </div>
+            <div id="userManageContent">
+                <!-- 动态加载用户列表 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('=== 脚本开始加载 v2.0 ===');
+        let currentPage = 1;
+        let totalPages = 1;
+        let totalBooks = 0;
+        let searchTimeout;
+        let editingBookId = null;
+        let importCheckInterval = null;
+        let currentFilter = 'all'; // 当前过滤类型：all, favorites, read
+        console.log('=== 变量初始化完成 ===');
+
+        // 主题管理
+        function switchTheme(theme) {
+            // 移除所有主题，如果不是classic则添加新主题
+            document.body.removeAttribute('data-theme');
+            if (theme !== 'classic') {
+                document.body.setAttribute('data-theme', theme);
+            }
+            
+            // 保存主题选择
+            localStorage.setItem('theme', theme);
+            
+            // 更新按钮状态
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+        }
+
+        // 加载保存的主题
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'classic';
+            switchTheme(savedTheme);
+        }
+
+        // 初始化
+        async function init() {
+            console.log('[DEBUG] 开始初始化应用');
+            loadTheme();
+            console.log('[DEBUG] 检查认证...');
+            await checkAuth();
+            console.log('[DEBUG] 加载统计信息...');
+            await loadStats();
+            console.log('[DEBUG] 加载书籍列表...');
+            await loadBooks();
+            
+            // 搜索事件
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    currentPage = 1;
+                    loadBooks(e.target.value);
+                }, 500);
+            });
+
+            // 检查是否有导入任务运行
+            checkImportStatus();
+            startImportStatusCheck();
+        }
+
+        // 检查认证
+        async function checkAuth() {
+            try {
+                console.log('[DEBUG] 发起认证请求...');
+                const response = await fetch('/api/current-user');
+                console.log('[DEBUG] 认证响应状态:', response.status);
+                if (!response.ok) {
+                    console.log('[DEBUG] 认证失败，跳转到登录页');
+                    window.location.href = '/login';
+                    return;
+                }
+                const user = await response.json();
+                console.log('[DEBUG] 认证成功，用户:', user.username);
+                document.getElementById('username').textContent = user.username;
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
+
+        // 加载统计信息
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/books/stats');
+                const stats = await response.json();
+                totalBooks = stats.total_books;
+                document.getElementById('totalBooks').textContent = stats.total_books;
+                document.getElementById('totalUsers').textContent = stats.total_users;
+            } catch (error) {
+                console.error('加载统计信息失败:', error);
+            }
+        }
+
+        // 加载图书列表
+        async function loadBooks(search = '') {
+            try {
+                console.log('[DEBUG] 开始加载书籍列表，当前页:', currentPage, '过滤器:', currentFilter);
+                const url = `/api/books?page=${currentPage}&per_page=12&search=${encodeURIComponent(search)}&filter=${currentFilter}`;
+                console.log('[DEBUG] 请求URL:', url);
+                const response = await fetch(url);
+                console.log('响应状态:', response.status);
+                const data = await response.json();
+                console.log('返回数据:', data);
+
+                totalPages = data.pages;
+                document.getElementById('currentPage').textContent = currentPage;
+
+                const grid = document.getElementById('booksGrid');
+                console.log('booksGrid元素:', grid);
+                
+                if (data.books.length === 0) {
+                    console.log('没有书籍数据');
+                    grid.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">📚</div>
+                            <h3>暂无图书</h3>
+                            <p>点击"添加图书"按钮开始添加您的第一本书</p>
+                        </div>
+                    `;
+                } else {
+                    console.log('开始渲染', data.books.length, '本书');
+                    grid.innerHTML = data.books.map(book => {
+                        // 如果有封面路径，使用API获取封面
+                        const hasCover = book.cover_image && book.cover_image.trim() !== '';
+                        const coverHtml = hasCover ? 
+                            '<img src="/api/books/' + book.id + '/cover" onerror="this.style.display=\'none\'; this.parentElement.innerHTML=\'📖\';" alt="封面">' : 
+                            '📖';
+                        
+                        // 安全地处理tags数组
+                        const tags = Array.isArray(book.tags) ? book.tags : [];
+                        const tagsHtml = tags.filter(t => t).slice(0, 2).map(tag => '<span class="tag">' + tag + '</span>').join('');
+                        
+                        // 检查是否有文件可以预览/下载
+                        const hasFile = book.file_path && book.file_path.trim() !== '';
+                        const previewBtn = hasFile ? 
+                            '<button class="btn-small btn-preview" onclick="previewBook(' + book.id + ', event)" title="预览图书">' +
+                                '<span class="btn-icon">👁️</span>' +
+                                '<span class="btn-text">预览</span>' +
+                            '</button>' : '';
+                        const downloadBtn = hasFile ? 
+                            '<button class="btn-small btn-download" onclick="downloadBook(' + book.id + ', event)" title="下载图书">' +
+                                '<span class="btn-icon">📥</span>' +
+                                '<span class="btn-text">下载</span>' +
+                            '</button>' : '';
+                        
+                        // 收藏和已读状态
+                        const favoriteClass = book.is_favorite ? 'active' : '';
+                        const favoriteIcon = book.is_favorite ? '❤️' : '🤍';
+                        const favoriteTitle = book.is_favorite ? '取消收藏' : '添加收藏';
+                        const readClass = book.is_read ? 'active' : '';
+                        const readIcon = book.is_read ? '✅' : '📖';
+                        const readTitle = book.is_read ? '标记未读' : '标记已读';
+                        
+                        return '<div class="book-card" onclick="viewBook(' + book.id + ')">' +
+                            '<div class="book-cover">' + coverHtml + '</div>' +
+                            '<div class="book-info">' +
+                                '<div class="book-title" title="' + (book.title || '') + '">' + (book.title || '') + '</div>' +
+                                '<div class="book-author">' + (book.author || '未知作者') + '</div>' +
+                                '<div class="book-tags">' + tagsHtml + '</div>' +
+                                '<div class="book-actions" onclick="event.stopPropagation()">' +
+                                    previewBtn + downloadBtn +
+                                    (currentUser && currentUser.is_admin ? 
+                                    '<button class="btn-small btn-edit" onclick="editBook(' + book.id + ')" title="编辑图书信息">' +
+                                        '<span class="btn-icon">✏️</span>' +
+                                        '<span class="btn-text">编辑</span>' +
+                                    '</button>' +
+                                    '<button class="btn-small btn-delete" onclick="deleteBook(' + book.id + ')" title="删除图书">' +
+                                        '<span class="btn-icon">🗑️</span>' +
+                                        '<span class="btn-text">删除</span>' +
+                                    '</button>' : '') +
+                                '</div>' +
+                                '<div class="book-status-btns" onclick="event.stopPropagation()">' +
+                                    '<button class="btn-status btn-favorite ' + favoriteClass + '" onclick="toggleFavorite(' + book.id + ')" title="' + favoriteTitle + '">' +
+                                        '<span class="status-icon">' + favoriteIcon + '</span>' +
+                                        '<span class="status-text">' + (book.is_favorite ? '已收藏' : '收藏') + '</span>' +
+                                    '</button>' +
+                                    '<button class="btn-status btn-read ' + readClass + '" onclick="toggleRead(' + book.id + ')" title="' + readTitle + '">' +
+                                        '<span class="status-icon">' + readIcon + '</span>' +
+                                        '<span class="status-text">' + (book.is_read ? '已读' : '未读') + '</span>' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('');
+                    console.log('书籍渲染完成');
+                }
+
+                renderPagination();
+            } catch (error) {
+                console.error('加载图书失败:', error);
+                console.error('错误堆栈:', error.stack);
+                alert('加载图书失败: ' + error.message);
+            }
+        }
+
+        // 渲染分页
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            let html = '';
+
+            // 首页按钮
+            if (currentPage > 1) {
+                html += `<button class="page-btn" onclick="changePage(1)">首页</button>`;
+                html += `<button class="page-btn" onclick="changePage(${currentPage - 1})">上一页</button>`;
+            } else {
+                html += `<button class="page-btn" disabled>首页</button>`;
+                html += `<button class="page-btn" disabled>上一页</button>`;
+            }
+
+            // 页码按钮
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="changePage(1)">1</button>`;
+                if (startPage > 2) {
+                    html += `<span class="page-info">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span class="page-info">...</span>`;
+                }
+                html += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+            }
+
+            // 尾页按钮
+            if (currentPage < totalPages) {
+                html += `<button class="page-btn" onclick="changePage(${currentPage + 1})">下一页</button>`;
+                html += `<button class="page-btn" onclick="changePage(${totalPages})">尾页</button>`;
+            } else {
+                html += `<button class="page-btn" disabled>下一页</button>`;
+                html += `<button class="page-btn" disabled>尾页</button>`;
+            }
+
+            // 页码信息
+            html += `<span class="page-info">第 ${currentPage} / ${totalPages} 页，共 ${totalBooks} 本书</span>`;
+
+            pagination.innerHTML = html;
+        }
+
+        // 切换页面
+        function changePage(page) {
+            currentPage = page;
+            loadBooks(document.getElementById('searchInput').value);
+        }
+
+        // 打开添加模态框
+        function openAddModal() {
+            editingBookId = null;
+            document.getElementById('modalTitle').textContent = '添加图书';
+            document.getElementById('bookForm').reset();
+            document.getElementById('bookId').value = '';
+            document.getElementById('language').value = '中文';
+            document.getElementById('bookEditModal').classList.add('active');
+        }
+
+        // 关闭详情模态框
+        function closeDetailModal() {
+            document.getElementById('bookDetailModal').classList.remove('active');
+        }
+
+        // 关闭编辑模态框
+        function closeEditModal() {
+            document.getElementById('bookEditModal').classList.remove('active');
+            document.getElementById('bookForm').reset();
+            editingBookId = null;
+        }
+
+        // 关闭模态框（兼容旧代码）
+        function closeModal() {
+            closeDetailModal();
+            closeEditModal();
+        }
+
+        // 编辑图书
+        async function editBook(id) {
+            try {
+                const response = await fetch(`/api/books/${id}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                const book = await response.json();
+
+                editingBookId = id;
+                document.getElementById('modalTitle').textContent = '编辑图书';
+                document.getElementById('bookId').value = id;
+                document.getElementById('title').value = book.title || '';
+                document.getElementById('author').value = book.author || '';
+                document.getElementById('publisher').value = book.publisher || '';
+                document.getElementById('isbn').value = book.isbn || '';
+                document.getElementById('publicationDate').value = book.publication_date || '';
+                document.getElementById('language').value = book.language || '';
+                document.getElementById('tags').value = Array.isArray(book.tags) ? book.tags.join(', ') : '';
+                document.getElementById('rating').value = book.rating || 0;
+                document.getElementById('description').value = book.description || '';
+
+                document.getElementById('bookEditModal').classList.add('active');
+            } catch (error) {
+                console.error('加载图书信息失败:', error);
+                alert('加载图书信息失败: ' + error.message);
+            }
+        }
+
+        // 查看图书详情
+        function viewBook(id) {
+            showBookDetail(id);
+        }
+
+        // 显示图书详情
+        async function showBookDetail(id) {
+            try {
+                const response = await fetch(`/api/books/${id}`);
+                const book = await response.json();
+
+                const hasCover = book.cover_image && book.cover_image.trim() !== '';
+                const coverHtml = hasCover ? 
+                    `<img src="/api/books/${id}/cover" onerror="this.style.display='none'; this.parentElement.innerHTML='📖';" alt="${book.title}">` : 
+                    '📖';
+
+                const hasFile = book.file_path && book.file_path.trim() !== '';
+                
+                // 安全地处理tags数组
+                const tags = Array.isArray(book.tags) ? book.tags : [];
+                const tagsText = tags.length > 0 ? tags.join(', ') : '无';
+                
+                // 收藏和已读状态
+                const favoriteClass = book.is_favorite ? 'active' : '';
+                const favoriteIcon = book.is_favorite ? '❤️' : '🤍';
+                const favoriteText = book.is_favorite ? '已收藏' : '收藏';
+                const readClass = book.is_read ? 'active' : '';
+                const readIcon = book.is_read ? '✅' : '📖';
+                const readText = book.is_read ? '已读' : '标记已读';
+                
+                // 管理员按钮
+                const adminButtons = (currentUser && currentUser.is_admin) ? `
+                    <button class="btn-small btn-edit" onclick="closeDetailModal(); editBook(${id})" style="flex: 1;">
+                        <span class="btn-icon">✏️</span>
+                        <span class="btn-text">编辑</span>
+                    </button>
+                    <button class="btn-small btn-delete" onclick="closeDetailModal(); deleteBook(${id})" style="flex: 1;">
+                        <span class="btn-icon">🗑️</span>
+                        <span class="btn-text">删除</span>
+                    </button>
+                ` : '';
+                
+                const modalContent = `
+                    <div class="modal-header">
+                        <h2>图书详情</h2>
+                        <button class="btn-close" onclick="closeDetailModal()">&times;</button>
+                    </div>
+                    <div class="book-detail-view">
+                        <div class="book-detail-cover">${coverHtml}</div>
+                        <div class="book-detail-info">
+                            <h2 class="detail-title">${book.title}</h2>
+                            <div class="info-row">
+                                <span class="info-label">作者:</span>
+                                <span>${book.author || '未知'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">出版社:</span>
+                                <span>${book.publisher || '未知'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">ISBN:</span>
+                                <span>${book.isbn || '无'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">格式:</span>
+                                <span>${book.file_format || '未知'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">评分:</span>
+                                <span>${'⭐'.repeat(Math.round(book.rating || 0))} (${book.rating || 0}/5)</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">标签:</span>
+                                <span>${tagsText}</span>
+                            </div>
+                            ${book.description ? `
+                            <div class="info-row" style="margin-top: 15px;">
+                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 5px;">简介:</div>
+                                <div style="line-height: 1.6; max-height: 150px; overflow-y: auto; color: var(--text-secondary);">${book.description.substring(0, 300)}${book.description.length > 300 ? '...' : ''}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="book-detail-actions">
+                        ${hasFile ? `
+                            <button class="btn-small btn-preview" onclick="window.open('/reader?id=${id}', '_blank')" style="flex: 1;">
+                                <span class="btn-icon">👁️</span>
+                                <span class="btn-text">预览</span>
+                            </button>
+                            <button class="btn-small btn-download" onclick="window.location.href='/api/books/${id}/download'" style="flex: 1;">
+                                <span class="btn-icon">📥</span>
+                                <span class="btn-text">下载</span>
+                            </button>
+                        ` : ''}
+                        ${adminButtons}
+                    </div>
+                    <div class="book-detail-status" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                        <button class="btn-status btn-favorite ${favoriteClass}" onclick="toggleFavoriteInDetail(${id})">
+                            <span class="status-icon">${favoriteIcon}</span>
+                            <span class="status-text">${favoriteText}</span>
+                        </button>
+                        <button class="btn-status btn-read ${readClass}" onclick="toggleReadInDetail(${id})">
+                            <span class="status-icon">${readIcon}</span>
+                            <span class="status-text">${readText}</span>
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById('bookDetailContent').innerHTML = modalContent;
+                document.getElementById('bookDetailModal').classList.add('active');
+
+            } catch (error) {
+                console.error('加载图书详情失败:', error);
+                alert('加载图书详情失败: ' + error.message);
+            }
+        }
+
+        // 预览图书
+        function previewBook(id, event) {
+            if (event) event.stopPropagation();
+            window.open(`/reader?id=${id}`, '_blank');
+        }
+
+        // 下载图书
+        function downloadBook(id, event) {
+            if (event) event.stopPropagation();
+            window.location.href = `/api/books/${id}/download`;
+        }
+
+        // 过滤图书
+        function filterBooks(filter) {
+            currentFilter = filter;
+            currentPage = 1;
+            
+            // 更新侧边栏激活状态
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                if (item.dataset.filter === filter) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            
+            loadBooks(document.getElementById('searchInput').value);
+        }
+
+        // 切换收藏状态
+        async function toggleFavorite(bookId) {
+            try {
+                const response = await fetch(`/api/books/${bookId}/favorite`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    await loadBooks(document.getElementById('searchInput').value);
+                }
+            } catch (error) {
+                console.error('切换收藏状态失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 在详情页切换收藏状态
+        async function toggleFavoriteInDetail(bookId) {
+            try {
+                const response = await fetch(`/api/books/${bookId}/favorite`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    // 重新加载详情页
+                    await showBookDetail(bookId);
+                    // 同时刷新列表
+                    await loadBooks(document.getElementById('searchInput').value);
+                }
+            } catch (error) {
+                console.error('切换收藏状态失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 切换已读状态
+        async function toggleRead(bookId) {
+            try {
+                const response = await fetch(`/api/books/${bookId}/mark-read`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    await loadBooks(document.getElementById('searchInput').value);
+                }
+            } catch (error) {
+                console.error('切换已读状态失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 在详情页切换已读状态
+        async function toggleReadInDetail(bookId) {
+            try {
+                const response = await fetch(`/api/books/${bookId}/mark-read`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    // 重新加载详情页
+                    await showBookDetail(bookId);
+                    // 同时刷新列表
+                    await loadBooks(document.getElementById('searchInput').value);
+                }
+            } catch (error) {
+                console.error('切换已读状态失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 删除图书
+        async function deleteBook(id) {
+            if (!confirm('确定要删除这本书吗？')) return;
+
+            try {
+                const response = await fetch(`/api/books/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('删除成功');
+                    loadBooks(document.getElementById('searchInput').value);
+                    loadStats();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (error) {
+                alert('删除失败');
+            }
+        }
+
+        // 提交表单
+        document.getElementById('bookForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const bookData = {
+                title: document.getElementById('title').value,
+                author: document.getElementById('author').value,
+                publisher: document.getElementById('publisher').value,
+                isbn: document.getElementById('isbn').value,
+                publication_date: document.getElementById('publicationDate').value,
+                language: document.getElementById('language').value,
+                tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t),
+                rating: parseFloat(document.getElementById('rating').value),
+                description: document.getElementById('description').value
+            };
+
+            try {
+                let response;
+                if (editingBookId) {
+                    response = await fetch(`/api/books/${editingBookId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(bookData)
+                    });
+                } else {
+                    response = await fetch('/api/books', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(bookData)
+                    });
+                }
+
+                if (response.ok) {
+                    alert(editingBookId ? '更新成功' : '添加成功');
+                    closeEditModal();
+                    loadBooks(document.getElementById('searchInput').value);
+                    loadStats();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '操作失败');
+                }
+            } catch (error) {
+                alert('操作失败');
+            }
+        });
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/login';
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
+
+        // 从Calibre导入
+        async function importFromCalibre() {
+            try {
+                const response = await fetch('/api/calibre/import', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('后台导入已启动！\n您可以继续浏览，系统会在后台自动导入书籍。');
+                    checkImportStatus();
+                    startImportStatusCheck();
+                } else {
+                    alert(data.error || '启动导入失败');
+                }
+            } catch (error) {
+                alert('启动导入失败：' + error.message);
+            }
+        }
+
+        // 检查导入状态
+        async function checkImportStatus() {
+            try {
+                const response = await fetch('/api/calibre/import-status');
+                const status = await response.json();
+                
+                if (status.running) {
+                    showImportProgress(status);
+                } else if (status.completed && status.progress > 0) {
+                    // 显示完成状态3秒后隐藏
+                    showImportProgress(status);
+                    setTimeout(() => {
+                        hideImportProgress();
+                        loadBooks();
+                        loadStats();
+                    }, 3000);
+                } else {
+                    hideImportProgress();
+                }
+            } catch (error) {
+                console.error('检查导入状态失败:', error);
+            }
+        }
+
+        // 显示导入进度
+        function showImportProgress(status) {
+            const statusBar = document.getElementById('importStatusBar');
+            const statusText = document.getElementById('importStatusText');
+            const progressFill = document.getElementById('importProgressFill');
+            
+            statusBar.classList.add('active');
+            
+            const percentage = status.total > 0 ? Math.round((status.progress / status.total) * 100) : 0;
+            progressFill.style.width = percentage + '%';
+            
+            if (status.completed) {
+                statusBar.classList.add('completed');
+                statusText.textContent = `导入完成！新增 ${status.imported} 本，更新 ${status.updated} 本`;
+                document.querySelector('.import-status-bar .status-icon').textContent = '✓';
+            } else if (status.error) {
+                statusBar.classList.add('completed');
+                statusText.textContent = '导入出错: ' + status.error;
+                document.querySelector('.import-status-bar .status-icon').textContent = '✗';
+            } else {
+                statusBar.classList.remove('completed');
+                statusText.textContent = `正在导入 ${status.progress}/${status.total} 本 (${percentage}%)`;
+                document.querySelector('.import-status-bar .status-icon').textContent = '⚙️';
+            }
+        }
+
+        // 隐藏导入进度
+        function hideImportProgress() {
+            const statusBar = document.getElementById('importStatusBar');
+            statusBar.classList.remove('active', 'completed');
+        }
+
+        // 定期检查导入状态
+        function startImportStatusCheck() {
+            if (importCheckInterval) {
+                clearInterval(importCheckInterval);
+            }
+            
+            importCheckInterval = setInterval(() => {
+                checkImportStatus();
+            }, 3000); // 每3秒检查一次
+        }
+
+        // 停止检查
+        function stopImportStatusCheck() {
+            if (importCheckInterval) {
+                clearInterval(importCheckInterval);
+                importCheckInterval = null;
+            }
+        }
+
+        // ==================== 用户管理功能 ====================
+        
+        let currentUser = null;
+
+        // 加载当前用户信息
+        async function loadCurrentUser() {
+            try {
+                const response = await fetch('/api/current-user');
+                if (response.ok) {
+                    currentUser = await response.json();
+                    document.getElementById('username').textContent = `👤 ${currentUser.username}`;
+                    
+                    // 如果是管理员，显示用户管理按钮
+                    if (currentUser.is_admin) {
+                        document.getElementById('userManageBtn').style.display = 'block';
+                    }
+                    
+                    // 如果不是管理员，隐藏编辑和删除按钮
+                    updateUIBasedOnPermissions();
+                }
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+            }
+        }
+
+        // 根据权限更新UI
+        function updateUIBasedOnPermissions() {
+            if (!currentUser || !currentUser.is_admin) {
+                // 隐藏添加书籍按钮
+                const addBookBtn = document.querySelector('[onclick="openAddBookModal()"]');
+                if (addBookBtn) {
+                    addBookBtn.style.display = 'none';
+                }
+                
+                // 隐藏导入按钮
+                const importBtn = document.querySelector('[onclick="importFromCalibre()"]');
+                if (importBtn) {
+                    importBtn.style.display = 'none';
+                }
+            }
+        }
+
+        // 打开用户管理模态框
+        async function openUserManageModal() {
+            const modal = document.getElementById('userManageModal');
+            modal.classList.add('active');
+            await loadUsersList();
+        }
+
+        // 关闭用户管理模态框
+        function closeUserManageModal() {
+            const modal = document.getElementById('userManageModal');
+            modal.classList.remove('active');
+        }
+
+        // 加载用户列表
+        async function loadUsersList() {
+            try {
+                const response = await fetch('/api/admin/users');
+                if (response.ok) {
+                    const data = await response.json();
+                    renderUsersList(data.users);
+                } else {
+                    alert('加载用户列表失败');
+                }
+            } catch (error) {
+                console.error('加载用户列表失败:', error);
+                alert('加载用户列表失败');
+            }
+        }
+
+        // 渲染用户列表
+        function renderUsersList(users) {
+            const content = document.getElementById('userManageContent');
+            
+            const pendingUsers = users.filter(u => !u.is_approved && !u.is_admin);
+            const approvedUsers = users.filter(u => u.is_approved || u.is_admin);
+            
+            let html = '';
+            
+            // 待审核用户
+            if (pendingUsers.length > 0) {
+                html += '<div style="margin-bottom: 30px;"><h3 style="color: var(--text-primary); margin-bottom: 15px;">⏳ 待审核用户 (' + pendingUsers.length + ')</h3>';
+                html += '<div style="display: grid; gap: 12px;">';
+                pendingUsers.forEach(user => {
+                    html += renderUserCard(user, true);
+                });
+                html += '</div></div>';
+            }
+            
+            // 已审核用户
+            html += '<div><h3 style="color: var(--text-primary); margin-bottom: 15px;">✅ 已审核用户 (' + approvedUsers.length + ')</h3>';
+            html += '<div style="display: grid; gap: 12px;">';
+            approvedUsers.forEach(user => {
+                html += renderUserCard(user, false);
+            });
+            html += '</div></div>';
+            
+            content.innerHTML = html;
+        }
+
+        // 渲染单个用户卡片
+        function renderUserCard(user, isPending) {
+            const isCurrentUser = currentUser && user.id === currentUser.id;
+            const badge = user.is_admin ? '<span style="background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 100%); color: #78350f; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">管理员</span>' : 
+                          (isPending ? '<span style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #b91c1c; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">待审核</span>' : 
+                          '<span style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #047857; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">已审核</span>');
+            
+            let actions = '';
+            if (!isCurrentUser) {
+                if (isPending) {
+                    actions = `
+                        <button class="btn-small btn-preview" onclick="approveUser(${user.id})" style="flex: 1;">
+                            <span class="btn-icon">✓</span>
+                            <span class="btn-text">通过</span>
+                        </button>
+                        <button class="btn-small btn-delete" onclick="deleteUser(${user.id})" style="flex: 1;">
+                            <span class="btn-icon">✗</span>
+                            <span class="btn-text">拒绝</span>
+                        </button>
+                    `;
+                } else if (!user.is_admin) {
+                    actions = `
+                        <button class="btn-small btn-edit" onclick="toggleAdmin(${user.id}, ${!user.is_admin})" style="flex: 1;">
+                            <span class="btn-icon">👑</span>
+                            <span class="btn-text">${user.is_admin ? '取消管理员' : '设为管理员'}</span>
+                        </button>
+                        <button class="btn-small btn-download" onclick="rejectUser(${user.id})" style="flex: 1;">
+                            <span class="btn-icon">⏸</span>
+                            <span class="btn-text">取消审核</span>
+                        </button>
+                        <button class="btn-small btn-delete" onclick="deleteUser(${user.id})" style="flex: 1;">
+                            <span class="btn-icon">🗑️</span>
+                            <span class="btn-text">删除</span>
+                        </button>
+                    `;
+                } else {
+                    actions = '<span style="color: var(--text-secondary); font-size: 12px;">系统管理员</span>';
+                }
+            } else {
+                actions = '<span style="color: var(--text-secondary); font-size: 12px;">当前用户</span>';
+            }
+            
+            return `
+                <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                            <strong style="color: var(--text-primary); font-size: 15px;">${user.username}</strong>
+                            ${badge}
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 13px;">${user.email}</div>
+                        <div style="color: var(--text-secondary); font-size: 11px; margin-top: 3px;">注册时间: ${new Date(user.created_at).toLocaleString('zh-CN')}</div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        ${actions}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 审核通过用户
+        async function approveUser(userId) {
+            if (!confirm('确定要通过该用户的审核吗？')) return;
+            
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/approve`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    alert('审核通过');
+                    await loadUsersList();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '操作失败');
+                }
+            } catch (error) {
+                console.error('审核失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 取消审核
+        async function rejectUser(userId) {
+            if (!confirm('确定要取消该用户的审核吗？用户将无法登录。')) return;
+            
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/reject`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    alert('已取消审核');
+                    await loadUsersList();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '操作失败');
+                }
+            } catch (error) {
+                console.error('操作失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 删除用户
+        async function deleteUser(userId) {
+            if (!confirm('确定要删除该用户吗？此操作不可恢复！')) return;
+            
+            try {
+                const response = await fetch(`/api/admin/users/${userId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('用户已删除');
+                    await loadUsersList();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '操作失败');
+                }
+            } catch (error) {
+                console.error('删除失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 切换管理员权限
+        async function toggleAdmin(userId, setAdmin) {
+            const action = setAdmin ? '设为管理员' : '取消管理员权限';
+            if (!confirm(`确定要${action}吗？`)) return;
+            
+            try {
+                const response = await fetch(`/api/admin/users/${userId}/set-admin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_admin: setAdmin })
+                });
+                
+                if (response.ok) {
+                    alert('操作成功');
+                    await loadUsersList();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '操作失败');
+                }
+            } catch (error) {
+                console.error('操作失败:', error);
+                alert('操作失败');
+            }
+        }
+
+        // 修改init函数，添加加载用户信息
+        async function init() {
+            console.log('开始初始化应用...');
+            loadTheme();
+            await loadCurrentUser();  // 添加这一行
+            await loadStats();
+            await loadBooks();
+            checkImportStatus();
+        }
+
+        // 点击模态框外部关闭
+        const bookDetailModal = document.getElementById('bookDetailModal');
+        const bookEditModal = document.getElementById('bookEditModal');
+        const userManageModal = document.getElementById('userManageModal');
+        
+        if (bookDetailModal) {
+            bookDetailModal.addEventListener('click', (e) => {
+                if (e.target.id === 'bookDetailModal') {
+                    closeDetailModal();
+                }
+            });
+        }
+        
+        if (bookEditModal) {
+            bookEditModal.addEventListener('click', (e) => {
+                if (e.target.id === 'bookEditModal') {
+                    closeEditModal();
+                }
+            });
+        }
+        
+        if (userManageModal) {
+            userManageModal.addEventListener('click', (e) => {
+                if (e.target.id === 'userManageModal') {
+                    closeUserManageModal();
+                }
+            });
+        }
+
+        // 初始化应用
+        init();
+    </script>
+</body>
+</html>

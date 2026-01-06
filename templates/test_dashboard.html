@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试页面</title>
+</head>
+<body>
+    <h1>测试页面</h1>
+    <div id="result">等待中...</div>
+    
+    <script>
+        console.log('脚本已加载');
+        
+        async function testAPI() {
+            console.log('开始测试API');
+            try {
+                const response = await fetch('/api/books?page=1&per_page=2&filter=all');
+                console.log('响应状态:', response.status);
+                const data = await response.json();
+                console.log('返回数据:', data);
+                document.getElementById('result').textContent = `找到 ${data.total} 本书`;
+            } catch (error) {
+                console.error('错误:', error);
+                document.getElementById('result').textContent = '错误: ' + error.message;
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>
