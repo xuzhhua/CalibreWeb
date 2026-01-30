@@ -13,6 +13,8 @@ import json
 import threading
 import time
 from dotenv import load_dotenv
+import logging
+from logging.handlers import RotatingFileHandler
 
 # 加载环境变量
 load_dotenv()
@@ -34,6 +36,25 @@ db = SQLAlchemy(app)
 # 确保上传文件夹存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# 配置日志
+logs_dir = 'logs'
+os.makedirs(logs_dir, exist_ok=True)
+
+# 创建导入失败日志记录器
+import_logger = logging.getLogger('import_failures')
+import_logger.setLevel(logging.INFO)
+
+# 创建文件处理器（最大10MB，保留5个备份）
+log_file = os.path.join(logs_dir, 'import_failures.log')
+file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
+file_handler.setLevel(logging.INFO)
+
+# 设置日志格式
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+file_handler.setFormatter(log_formatter)
+
+import_logger.addHandler(file_handler)
+
 # 导入状态跟踪
 import_status = {
     'running': False,
@@ -42,6 +63,7 @@ import_status = {
     'imported': 0,
     'updated': 0,
     'skipped': 0,
+    'failed': 0,
     'current_book': '',
     'start_time': None,
     'completed': False,
@@ -830,100 +852,102 @@ def import_from_calibre(limit=1000, offset=0):
         imported_count = 0
         skipped_count = 0
         updated_count = 0
+        failed_count = 0
         
         for idx, book_data in enumerate(books, 1):
             if idx % 100 == 0:
                 print(f"处理进度: {idx}/{len(books)}")
             
-            calibre_id, title, path, timestamp = book_data
-            
-            # 分别查询作者
-            cursor.execute("""
-                SELECT a.name FROM authors a
-                JOIN books_authors_link bal ON a.id = bal.author
-                WHERE bal.book = ?
-                LIMIT 1
-            """, (calibre_id,))
-            author_row = cursor.fetchone()
-            author = author_row[0] if author_row else None
-            
-            # 检查是否已存在（根据书名和作者）
-            existing = Book.query.filter_by(title=title, author=author).first()
-            
-            if existing:
-                # 检查完整性并更新缺失信息
-                updated = update_book_completeness(existing, calibre_id, cursor, path)
-                if updated:
-                    updated_count += 1
-                else:
-                    skipped_count += 1
-                continue
-            
-            # 分别查询出版社
-            cursor.execute("""
-                SELECT p.name FROM publishers p
-                JOIN books_publishers_link bpl ON p.id = bpl.publisher
-                WHERE bpl.book = ?
-                LIMIT 1
-            """, (calibre_id,))
-            publisher_row = cursor.fetchone()
-            publisher = publisher_row[0] if publisher_row else None
-            
-            # 分别查询ISBN
-            cursor.execute("""
-                SELECT val FROM identifiers
-                WHERE book = ? AND type = 'isbn'
-                LIMIT 1
-            """, (calibre_id,))
-            isbn_row = cursor.fetchone()
-            isbn = isbn_row[0] if isbn_row else None
-            
-            # 查询标签
-            cursor.execute("""
-                SELECT t.name FROM tags t
-                JOIN books_tags_link btl ON t.id = btl.tag
-                WHERE btl.book = ?
-            """, (calibre_id,))
-            tags = [row[0] for row in cursor.fetchall()]
-            
-            # 查询评分
-            cursor.execute("""
-                SELECT r.rating FROM ratings r
-                JOIN books_ratings_link brl ON r.id = brl.rating
-                WHERE brl.book = ?
-                LIMIT 1
-            """, (calibre_id,))
-            rating_row = cursor.fetchone()
-            rating = (rating_row[0] / 2.0) if rating_row and rating_row[0] else 0.0  # Calibre用0-10，转为0-5
-            
-            # 查询简介
-            cursor.execute("""
-                SELECT text FROM comments
-                WHERE book = ?
-                LIMIT 1
-            """, (calibre_id,))
-            desc_row = cursor.fetchone()
-            description = desc_row[0] if desc_row else None
-            
-            # 创建新书籍记录
-            book = Book(
-                title=title,
-                author=author,
-                publisher=publisher,
-                isbn=isbn,
-                description=description,
-                rating=rating,
-                tags=','.join(tags) if tags else ''
-            )
-            
-            # 设置文件路径（相对于Calibre书库）
-            if path:
-                book_dir = os.path.join(app.config['CALIBRE_LIBRARY_PATH'], path)
-                if os.path.exists(book_dir):
-                    # 查找封面图片
-                    cover_path = os.path.join(book_dir, 'cover.jpg')
-                    if os.path.exists(cover_path):
-                        book.cover_image = cover_path
+            try:
+                calibre_id, title, path, timestamp = book_data
+                
+                # 分别查询作者
+                cursor.execute("""
+                    SELECT a.name FROM authors a
+                    JOIN books_authors_link bal ON a.id = bal.author
+                    WHERE bal.book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                author_row = cursor.fetchone()
+                author = author_row[0] if author_row else None
+                
+                # 检查是否已存在（根据书名和作者）
+                existing = Book.query.filter_by(title=title, author=author).first()
+                
+                if existing:
+                    # 检查完整性并更新缺失信息
+                    updated = update_book_completeness(existing, calibre_id, cursor, path)
+                    if updated:
+                        updated_count += 1
+                    else:
+                        skipped_count += 1
+                    continue
+                
+                # 分别查询出版社
+                cursor.execute("""
+                    SELECT p.name FROM publishers p
+                    JOIN books_publishers_link bpl ON p.id = bpl.publisher
+                    WHERE bpl.book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                publisher_row = cursor.fetchone()
+                publisher = publisher_row[0] if publisher_row else None
+                
+                # 分别查询ISBN
+                cursor.execute("""
+                    SELECT val FROM identifiers
+                    WHERE book = ? AND type = 'isbn'
+                    LIMIT 1
+                """, (calibre_id,))
+                isbn_row = cursor.fetchone()
+                isbn = isbn_row[0] if isbn_row else None
+                
+                # 查询标签
+                cursor.execute("""
+                    SELECT t.name FROM tags t
+                    JOIN books_tags_link btl ON t.id = btl.tag
+                    WHERE btl.book = ?
+                """, (calibre_id,))
+                tags = [row[0] for row in cursor.fetchall()]
+                
+                # 查询评分
+                cursor.execute("""
+                    SELECT r.rating FROM ratings r
+                    JOIN books_ratings_link brl ON r.id = brl.rating
+                    WHERE brl.book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                rating_row = cursor.fetchone()
+                rating = (rating_row[0] / 2.0) if rating_row and rating_row[0] else 0.0  # Calibre用0-10，转为0-5
+                
+                # 查询简介
+                cursor.execute("""
+                    SELECT text FROM comments
+                    WHERE book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                desc_row = cursor.fetchone()
+                description = desc_row[0] if desc_row else None
+                
+                # 创建新书籍记录
+                book = Book(
+                    title=title,
+                    author=author,
+                    publisher=publisher,
+                    isbn=isbn,
+                    description=description,
+                    rating=rating,
+                    tags=','.join(tags) if tags else ''
+                )
+                
+                # 设置文件路径（相对于Calibre书库）
+                if path:
+                    book_dir = os.path.join(app.config['CALIBRE_LIBRARY_PATH'], path)
+                    if os.path.exists(book_dir):
+                        # 查找封面图片
+                        cover_path = os.path.join(book_dir, 'cover.jpg')
+                        if os.path.exists(cover_path):
+                            book.cover_image = cover_path
                         if idx <= 3:  # 只打印前3本的调试信息
                             print(f"  找到封面: {cover_path}")
                     else:
@@ -937,9 +961,18 @@ def import_from_calibre(limit=1000, offset=0):
                             book.file_format = os.path.splitext(file)[1][1:].upper()
                             book.file_size = os.path.getsize(book.file_path)
                             break
+                
+                db.session.add(book)
+                imported_count += 1
             
-            db.session.add(book)
-            imported_count += 1
+            except Exception as book_error:
+                failed_count += 1
+                error_msg = f"书籍: {title if 'title' in locals() else 'Unknown'} (Calibre ID: {calibre_id if 'calibre_id' in locals() else 'Unknown'})"
+                error_detail = f"错误: {str(book_error)}"
+                print(f"  导入失败 - {error_msg} - {error_detail}")
+                import_logger.error(f"{error_msg} | {error_detail}")
+                # 继续处理下一本书
+                continue
         
         db.session.commit()
         conn.close()
@@ -948,19 +981,26 @@ def import_from_calibre(limit=1000, offset=0):
             'total': total_books,
             'skipped': skipped_count,
             'updated': updated_count,
+            'failed': failed_count,
             'processed': len(books)
         }
-        print(f"本次导入完成: 新增{imported_count}本，更新{updated_count}本，跳过{skipped_count}本，共处理{len(books)}本")
+        if failed_count > 0:
+            print(f"本次导入完成: 新增{imported_count}本，更新{updated_count}本，跳过{skipped_count}本，失败{failed_count}本，共处理{len(books)}本")
+            print(f"失败详情已记录到日志文件: {log_file}")
+        else:
+            print(f"本次导入完成: 新增{imported_count}本，更新{updated_count}本，跳过{skipped_count}本，共处理{len(books)}本")
         return result
         
     except sqlite3.Error as e:
         print(f"数据库错误: {e}")
-        return {'imported': 0, 'total': 0, 'skipped': 0, 'updated': 0, 'error': str(e)}
+        import_logger.error(f"数据库连接错误: {str(e)}")
+        return {'imported': 0, 'total': 0, 'skipped': 0, 'updated': 0, 'failed': 0, 'error': str(e)}
     except Exception as e:
         print(f"从Calibre导入失败: {e}")
+        import_logger.error(f"导入过程异常: {str(e)}")
         import traceback
         traceback.print_exc()
-        return {'imported': 0, 'total': 0, 'skipped': 0, 'updated': 0, 'error': str(e)}
+        return {'imported': 0, 'total': 0, 'skipped': 0, 'updated': 0, 'failed': 0, 'error': str(e)}
 
 
 def update_book_completeness(book, calibre_id, cursor, path):
@@ -1083,6 +1123,7 @@ def background_import_task():
             total_imported = 0
             total_updated = 0
             total_skipped = 0
+            total_failed = 0
             
             # 先检查数据库中已有书籍数量
             existing_count = Book.query.count()
@@ -1138,10 +1179,12 @@ def background_import_task():
                 total_imported += result['imported']
                 total_updated += result['updated']
                 total_skipped += result['skipped']
+                total_failed += result.get('failed', 0)
                 
                 import_status['imported'] = total_imported
                 import_status['updated'] = total_updated
                 import_status['skipped'] = total_skipped
+                import_status['failed'] = total_failed
                 import_status['total'] = result['total']
                 import_status['progress'] = offset + result['processed']
                 
@@ -1155,7 +1198,11 @@ def background_import_task():
                 time.sleep(0.5)
             
             import_status['completed'] = True
-            print(f"后台导入完成：新增{total_imported}本，更新{total_updated}本，跳过{total_skipped}本")
+            if total_failed > 0:
+                print(f"后台导入完成：新增{total_imported}本，更新{total_updated}本，跳过{total_skipped}本，失败{total_failed}本")
+                print(f"失败详情请查看日志文件: {log_file}")
+            else:
+                print(f"后台导入完成：新增{total_imported}本，更新{total_updated}本，跳过{total_skipped}本")
             
     except Exception as e:
         import_status['error'] = str(e)
