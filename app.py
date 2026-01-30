@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///calibre_web.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -1201,135 +1201,161 @@ def import_from_calibre(limit=1000, offset=0):
         books = cursor.fetchall()
         imported_count = 0
         skipped_count = 0
+        failed_books = []  # 记录失败的图书
         
         for idx, book_data in enumerate(books, 1):
             if idx % 100 == 0:
                 print(f"处理进度: {idx}/{len(books)}")
-            calibre_id, title, path, timestamp = book_data
             
-            # 分别查询作者
-            cursor.execute("""
-                SELECT a.name FROM authors a
-                JOIN books_authors_link bal ON a.id = bal.author
-                WHERE bal.book = ?
-                LIMIT 1
-            """, (calibre_id,))
-            author_row = cursor.fetchone()
-            author = author_row[0] if author_row else None
+            try:
+                calibre_id, title, path, timestamp = book_data
             
-            # 分别查询出版社
-            cursor.execute("""
-                SELECT p.name FROM publishers p
-                JOIN books_publishers_link bpl ON p.id = bpl.publisher
-                WHERE bpl.book = ?
-                LIMIT 1
-            """, (calibre_id,))
-            publisher_row = cursor.fetchone()
-            publisher = publisher_row[0] if publisher_row else None
-            
-            # 分别查询ISBN
-            cursor.execute("""
-                SELECT val FROM identifiers
-                WHERE book = ? AND type = 'isbn'
-                LIMIT 1
-            """, (calibre_id,))
-            isbn_row = cursor.fetchone()
-            isbn = isbn_row[0] if isbn_row else None
-            
-            # 检查是否已存在
-            existing = Book.query.filter_by(title=title, author=author).first()
-            if existing:
-                skipped_count += 1
-                continue
-            
-            # 查询标签
-            cursor.execute("""
-                SELECT t.name FROM tags t
-                JOIN books_tags_link btl ON t.id = btl.tag
-                WHERE btl.book = ?
-            """, (calibre_id,))
-            tags = [row[0] for row in cursor.fetchall()]
-            
-            # 查询评分
-            cursor.execute("""
-                SELECT r.rating FROM ratings r
-                JOIN books_ratings_link brl ON r.id = brl.rating
-                WHERE brl.book = ?
-                LIMIT 1
-            """, (calibre_id,))
-            rating_row = cursor.fetchone()
-            rating = (rating_row[0] / 2.0) if rating_row and rating_row[0] else 0.0  # Calibre用0-10，转为0-5
-            
-            # 查询简介
-            cursor.execute("""
-                SELECT text FROM comments
-                WHERE book = ?
-                LIMIT 1
-            """, (calibre_id,))
-            desc_row = cursor.fetchone()
-            description = desc_row[0] if desc_row else None
-            
-            # 创建新书籍记录
-            book = Book(
-                title=title,
-                author=author,
-                publisher=publisher,
-                isbn=isbn,
-                description=description,
-                rating=rating,
-                tags=','.join(tags) if tags else ''
-            )
-            
-            # 设置文件路径（相对于Calibre书库）
-            if path:
-                book_dir = os.path.join(app.config['CALIBRE_LIBRARY_PATH'], path)
-                if os.path.exists(book_dir):
-                    # 查找封面图片
-                    cover_path = os.path.join(book_dir, 'cover.jpg')
-                    if os.path.exists(cover_path):
-                        book.cover_image = cover_path
-                        if idx <= 3:  # 只打印前3本的调试信息
-                            print(f"  找到封面: {cover_path}")
-                    else:
-                        if idx <= 3:
-                            print(f"  封面不存在: {cover_path}")
-                    
-                    # 查找电子书文件
-                    for file in os.listdir(book_dir):
-                        if file.lower().endswith(('.epub', '.pdf', '.mobi', '.azw3', '.txt')):
-                            book.file_path = os.path.join(book_dir, file)
-                            book.file_format = os.path.splitext(file)[1][1:].upper()
-                            book.file_size = os.path.getsize(book.file_path)
-                            break
-            
-            db.session.add(book)
-            imported_count += 1
+                # 分别查询作者
+                cursor.execute("""
+                    SELECT a.name FROM authors a
+                    JOIN books_authors_link bal ON a.id = bal.author
+                    WHERE bal.book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                author_row = cursor.fetchone()
+                author = author_row[0] if author_row else None
+                
+                # 分别查询出版社
+                cursor.execute("""
+                    SELECT p.name FROM publishers p
+                    JOIN books_publishers_link bpl ON p.id = bpl.publisher
+                    WHERE bpl.book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                publisher_row = cursor.fetchone()
+                publisher = publisher_row[0] if publisher_row else None
+                
+                # 分别查询ISBN
+                cursor.execute("""
+                    SELECT val FROM identifiers
+                    WHERE book = ? AND type = 'isbn'
+                    LIMIT 1
+                """, (calibre_id,))
+                isbn_row = cursor.fetchone()
+                isbn = isbn_row[0] if isbn_row else None
+                
+                # 检查是否已存在
+                existing = Book.query.filter_by(title=title, author=author).first()
+                if existing:
+                    skipped_count += 1
+                    continue
+                
+                # 查询标签
+                cursor.execute("""
+                    SELECT t.name FROM tags t
+                    JOIN books_tags_link btl ON t.id = btl.tag
+                    WHERE btl.book = ?
+                """, (calibre_id,))
+                tags = [row[0] for row in cursor.fetchall()]
+                
+                # 查询评分
+                cursor.execute("""
+                    SELECT r.rating FROM ratings r
+                    JOIN books_ratings_link brl ON r.id = brl.rating
+                    WHERE brl.book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                rating_row = cursor.fetchone()
+                rating = (rating_row[0] / 2.0) if rating_row and rating_row[0] else 0.0  # Calibre用0-10，转为0-5
+                
+                # 查询简介
+                cursor.execute("""
+                    SELECT text FROM comments
+                    WHERE book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                desc_row = cursor.fetchone()
+                description = desc_row[0] if desc_row else None
+                
+                # 创建新书籍记录
+                book = Book(
+                    title=title,
+                    author=author,
+                    publisher=publisher,
+                    isbn=isbn,
+                    description=description,
+                    rating=rating,
+                    tags=','.join(tags) if tags else ''
+                )
+                
+                # 设置文件路径（相对于Calibre书库）
+                if path:
+                    book_dir = os.path.join(app.config['CALIBRE_LIBRARY_PATH'], path)
+                    if os.path.exists(book_dir):
+                        # 查找封面图片
+                        cover_path = os.path.join(book_dir, 'cover.jpg')
+                        if os.path.exists(cover_path):
+                            book.cover_image = cover_path
+                            if idx <= 3:  # 只打印前3本的调试信息
+                                print(f"  找到封面: {cover_path}")
+                        else:
+                            if idx <= 3:
+                                print(f"  封面不存在: {cover_path}")
+                        
+                        # 查找电子书文件
+                        for file in os.listdir(book_dir):
+                            if file.lower().endswith(('.epub', '.pdf', '.mobi', '.azw3', '.txt')):
+                                book.file_path = os.path.join(book_dir, file)
+                                book.file_format = os.path.splitext(file)[1][1:].upper()
+                                book.file_size = os.path.getsize(book.file_path)
+                                break
+                
+                db.session.add(book)
+                imported_count += 1
+                
+            except Exception as e:
+                # 记录导入失败的图书信息
+                failed_books.append({
+                    'calibre_id': calibre_id if 'calibre_id' in locals() else 'unknown',
+                    'title': title if 'title' in locals() else 'unknown',
+                    'author': author if 'author' in locals() else 'unknown',
+                    'error': str(e)
+                })
+                print(f"[ERROR] 导入失败 - Calibre ID: {calibre_id if 'calibre_id' in locals() else 'unknown'}, "
+                      f"书名: {title if 'title' in locals() else 'unknown'}, "
+                      f"作者: {author if 'author' in locals() else 'unknown'}, "
+                      f"错误: {str(e)}")
         
         db.session.commit()
         conn.close()
+        
+        # 输出失败图书的汇总信息
+        if failed_books:
+            print("\n" + "=" * 80)
+            print(f"导入失败的图书汇总 (共 {len(failed_books)} 本):")
+            print("=" * 80)
+            for idx, book_info in enumerate(failed_books, 1):
+                print(f"{idx}. Calibre ID: {book_info['calibre_id']}")
+                print(f"   书名: {book_info['title']}")
+                print(f"   作者: {book_info['author']}")
+                print(f"   错误: {book_info['error']}")
+                print("-" * 80)
+            print("=" * 80 + "\n")
+        
         result = {
             'imported': imported_count,
             'total': total_books,
             'skipped': skipped_count,
             'updated': 0,
-            'processed': len(books)
+            'processed': len(books),
+            'failed': len(failed_books)
         }
-        print(f"本次导入完成: 新增{imported_count}本，跳过{skipped_count}本，共处理{len(books)}本")
+        print(f"本次导入完成: 新增{imported_count}本，跳过{skipped_count}本，失败{len(failed_books)}本，共处理{len(books)}本")
         return result
         
     except sqlite3.Error as e:
         print(f"数据库错误: {e}")
-        return {'imported': 0, 'total': 0, 'skipped': 0, 'updated': 0, 'processed': 0, 'error': str(e)}
+        return {'imported': 0, 'total': 0, 'skipped': 0, 'updated': 0, 'processed': 0, 'failed': 0, 'error': str(e)}
     except Exception as e:
         print(f"从Calibre导入失败: {e}")
         import traceback
         traceback.print_exc()
-        return {'imported': 0, 'total': 0, 'skipped': 0, 'updated': 0, 'processed': 0, 'error': str(e)}
-        return imported_count
-        
-    except Exception as e:
-        print(f"从Calibre导入失败: {e}")
-        return 0
+        return {'imported': 0, 'total': 0, 'skipped': 0, 'updated': 0, 'processed': 0, 'failed': 0, 'error': str(e)}
 
 
 @app.route('/api/calibre/import', methods=['POST'])

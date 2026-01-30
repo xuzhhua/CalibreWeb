@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calibre Web - 图书管理 v2.0</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <style>
         * {
             margin: 0;
@@ -1779,19 +1780,43 @@
             loadTheme();
             console.log('[DEBUG] 检查认证...');
             await checkAuth();
+            console.log('[DEBUG] 加载当前用户信息...');
+            await loadCurrentUser();
             console.log('[DEBUG] 加载统计信息...');
             await loadStats();
             console.log('[DEBUG] 加载书籍列表...');
             await loadBooks();
             
             // 搜索事件
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    currentPage = 1;
-                    loadBooks(e.target.value);
-                }, 500);
-            });
+            const searchInput = document.getElementById('searchInput');
+            console.log('[DEBUG] 搜索输入框元素:', searchInput);
+            
+            if (searchInput) {
+                // input事件：实时搜索
+                searchInput.addEventListener('input', (e) => {
+                    console.log('[DEBUG] 搜索输入事件触发，值:', e.target.value);
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        currentPage = 1;
+                        console.log('[DEBUG] 执行搜索，关键字:', e.target.value);
+                        loadBooks(e.target.value);
+                    }, 500);
+                });
+                
+                // keypress事件：支持回车键搜索
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        console.log('[DEBUG] 回车键搜索，值:', e.target.value);
+                        clearTimeout(searchTimeout);
+                        currentPage = 1;
+                        loadBooks(e.target.value);
+                    }
+                });
+                
+                console.log('[DEBUG] 搜索事件监听器已绑定');
+            } else {
+                console.error('[ERROR] 未找到搜索输入框元素 #searchInput');
+            }
 
             // 检查是否有导入任务运行
             checkImportStatus();
@@ -2369,7 +2394,7 @@
                     showImportProgress(status);
                     setTimeout(() => {
                         hideImportProgress();
-                        loadBooks();
+                        loadBooks(document.getElementById('searchInput').value);
                         loadStats();
                     }, 3000);
                 } else {
@@ -2682,16 +2707,6 @@
             }
         }
 
-        // 修改init函数，添加加载用户信息
-        async function init() {
-            console.log('开始初始化应用...');
-            loadTheme();
-            await loadCurrentUser();  // 添加这一行
-            await loadStats();
-            await loadBooks();
-            checkImportStatus();
-        }
-
         // 点击模态框外部关闭
         const bookDetailModal = document.getElementById('bookDetailModal');
         const bookEditModal = document.getElementById('bookEditModal');
@@ -2722,7 +2737,12 @@
         }
 
         // 初始化应用
-        init();
+        // 确保DOM加载完成后再初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>

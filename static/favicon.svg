@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bookGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b7355;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6b5644;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- 书本主体 -->
+  <rect x="20" y="15" width="60" height="70" rx="3" fill="url(#bookGradient)"/>
+  <!-- 书脊 -->
+  <rect x="20" y="15" width="8" height="70" rx="3" fill="#5a4533"/>
+  <!-- 书页 -->
+  <path d="M 28 20 L 75 20 L 75 80 L 28 80 Z" fill="#f5e6d3"/>
+  <!-- 书页线条 -->
+  <line x1="35" y1="30" x2="68" y2="30" stroke="#c9b8a3" stroke-width="1.5"/>
+  <line x1="35" y1="40" x2="68" y2="40" stroke="#c9b8a3" stroke-width="1.5"/>
+  <line x1="35" y1="50" x2="68" y2="50" stroke="#c9b8a3" stroke-width="1.5"/>
+  <line x1="35" y1="60" x2="60" y2="60" stroke="#c9b8a3" stroke-width="1.5"/>
+  <line x1="35" y1="70" x2="65" y2="70" stroke="#c9b8a3" stroke-width="1.5"/>
+  <!-- 书签 -->
+  <path d="M 48 15 L 48 35 L 52 30 L 56 35 L 56 15 Z" fill="#e07856"/>
+</svg>
