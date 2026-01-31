@@ -1605,6 +1605,7 @@
                 <button class="theme-btn" data-theme="dark" onclick="switchTheme('dark')" title="深色主题"></button>
                 <button class="theme-btn" data-theme="ocean" onclick="switchTheme('ocean')" title="海洋主题"></button>
             </div>
+            <button class="btn-primary" id="calibreDiffBtn" onclick="openCalibreDiff()" style="display: none; padding: 8px 15px; font-size: 13px;">📊 书库差异分析</button>
             <button class="btn-primary" id="userManageBtn" onclick="openUserManageModal()" style="display: none; padding: 8px 15px; font-size: 13px;">👥 用户管理</button>
             <span id="username"></span>
             <button class="btn-logout" onclick="logout()">退出登录</button>
@@ -1741,6 +1742,16 @@
     </div>
 
     <script>
+        // 从Flask后端获取DEBUG配置
+        const DEBUG = {{ config.DEBUG|tojson }};
+        
+        // 条件性调试日志函数
+        function debugLog(...args) {
+            if (DEBUG) {
+                console.log(...args);
+            }
+        }
+        
         console.log('=== 脚本开始加载 v2.0 ===');
         let currentPage = 1;
         let totalPages = 1;
@@ -1776,29 +1787,29 @@
 
         // 初始化
         async function init() {
-            console.log('[DEBUG] 开始初始化应用');
+            debugLog('[DEBUG] 开始初始化应用');
             loadTheme();
-            console.log('[DEBUG] 检查认证...');
+            debugLog('[DEBUG] 检查认证...');
             await checkAuth();
-            console.log('[DEBUG] 加载当前用户信息...');
+            debugLog('[DEBUG] 加载当前用户信息...');
             await loadCurrentUser();
-            console.log('[DEBUG] 加载统计信息...');
+            debugLog('[DEBUG] 加载统计信息...');
             await loadStats();
-            console.log('[DEBUG] 加载书籍列表...');
+            debugLog('[DEBUG] 加载书籍列表...');
             await loadBooks();
             
             // 搜索事件
             const searchInput = document.getElementById('searchInput');
-            console.log('[DEBUG] 搜索输入框元素:', searchInput);
+            debugLog('[DEBUG] 搜索输入框元素:', searchInput);
             
             if (searchInput) {
                 // input事件：实时搜索
                 searchInput.addEventListener('input', (e) => {
-                    console.log('[DEBUG] 搜索输入事件触发，值:', e.target.value);
+                    debugLog('[DEBUG] 搜索输入事件触发，值:', e.target.value);
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
                         currentPage = 1;
-                        console.log('[DEBUG] 执行搜索，关键字:', e.target.value);
+                        debugLog('[DEBUG] 执行搜索，关键字:', e.target.value);
                         loadBooks(e.target.value);
                     }, 500);
                 });
@@ -1806,14 +1817,14 @@
                 // keypress事件：支持回车键搜索
                 searchInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
-                        console.log('[DEBUG] 回车键搜索，值:', e.target.value);
+                        debugLog('[DEBUG] 回车键搜索，值:', e.target.value);
                         clearTimeout(searchTimeout);
                         currentPage = 1;
                         loadBooks(e.target.value);
                     }
                 });
                 
-                console.log('[DEBUG] 搜索事件监听器已绑定');
+                debugLog('[DEBUG] 搜索事件监听器已绑定');
             } else {
                 console.error('[ERROR] 未找到搜索输入框元素 #searchInput');
             }
@@ -1826,16 +1837,16 @@
         // 检查认证
         async function checkAuth() {
             try {
-                console.log('[DEBUG] 发起认证请求...');
+                debugLog('[DEBUG] 发起认证请求...');
                 const response = await fetch('/api/current-user');
-                console.log('[DEBUG] 认证响应状态:', response.status);
+                debugLog('[DEBUG] 认证响应状态:', response.status);
                 if (!response.ok) {
-                    console.log('[DEBUG] 认证失败，跳转到登录页');
+                    debugLog('[DEBUG] 认证失败，跳转到登录页');
                     window.location.href = '/login';
                     return;
                 }
                 const user = await response.json();
-                console.log('[DEBUG] 认证成功，用户:', user.username);
+                debugLog('[DEBUG] 认证成功，用户:', user.username);
                 document.getElementById('username').textContent = user.username;
             } catch (error) {
                 window.location.href = '/login';
@@ -1858,9 +1869,9 @@
         // 加载图书列表
         async function loadBooks(search = '') {
             try {
-                console.log('[DEBUG] 开始加载书籍列表，当前页:', currentPage, '过滤器:', currentFilter);
+                debugLog('[DEBUG] 开始加载书籍列表，当前页:', currentPage, '过滤器:', currentFilter);
                 const url = `/api/books?page=${currentPage}&per_page=12&search=${encodeURIComponent(search)}&filter=${currentFilter}`;
-                console.log('[DEBUG] 请求URL:', url);
+                debugLog('[DEBUG] 请求URL:', url);
                 const response = await fetch(url);
                 console.log('响应状态:', response.status);
                 const data = await response.json();
@@ -2360,6 +2371,11 @@
             }
         }
 
+        // 打开书库差异分析页面
+        function openCalibreDiff() {
+            window.location.href = '/calibre-diff';
+        }
+
         // 从Calibre导入
         async function importFromCalibre() {
             try {
@@ -2468,9 +2484,10 @@
                     currentUser = await response.json();
                     document.getElementById('username').textContent = `👤 ${currentUser.username}`;
                     
-                    // 如果是管理员，显示用户管理按钮
+                    // 如果是管理员，显示管理员按钮
                     if (currentUser.is_admin) {
                         document.getElementById('userManageBtn').style.display = 'block';
+                        document.getElementById('calibreDiffBtn').style.display = 'block';
                     }
                     
                     // 如果不是管理员，隐藏编辑和删除按钮

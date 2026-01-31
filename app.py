@@ -189,7 +189,7 @@ def login_required(f):
 
 
 def admin_required(f):
-    """需要管理员权限的装饰器"""
+    """需要管理员权限的装饰器（用于API）"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -197,6 +197,20 @@ def admin_required(f):
         user = db.session.get(User, session['user_id'])
         if not user or not user.is_admin:
             return jsonify({'error': '需要管理员权限'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_page_required(f):
+    """需要管理员权限的装饰器（用于HTML页面）"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login_page'))
+        user = db.session.get(User, session['user_id'])
+        if not user or not user.is_admin:
+            flash('需要管理员权限才能访问此页面')
+            return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -240,6 +254,13 @@ def test_dashboard():
 def reader():
     """在线阅读器"""
     return render_template('reader.html')
+
+
+@app.route('/calibre-diff')
+@admin_page_required
+def calibre_diff_page():
+    """Calibre差异分析页面（仅管理员）"""
+    return render_template('calibre_diff.html')
 
 
 # ==================== API - 用户认证 ====================
@@ -429,7 +450,8 @@ def api_get_books():
         search = request.args.get('search', '')
         filter_type = request.args.get('filter', '')  # all, favorites, read
         
-        print(f"[DEBUG] API调用 - page:{page}, per_page:{per_page}, search:{search}, filter:{filter_type}")
+        if app.debug:
+            print(f"[DEBUG] API调用 - page:{page}, per_page:{per_page}, search:{search}, filter:{filter_type}")
         
         query = Book.query
         
@@ -461,7 +483,8 @@ def api_get_books():
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         user_id = session.get('user_id')
-        print(f"[DEBUG] 查询结果 - total:{pagination.total}, items:{len(pagination.items)}, user_id:{user_id}")
+        if app.debug:
+            print(f"[DEBUG] 查询结果 - total:{pagination.total}, items:{len(pagination.items)}, user_id:{user_id}")
         
         return jsonify({
             'books': [book.to_dict(user_id) for book in pagination.items],
@@ -1142,30 +1165,20 @@ def background_import_task():
             else:
                 calibre_total = 0
             
-            # 如果数据库为空，进行完整导入
+            # 根据数据库和Calibre书库的情况决定导入策略
             if existing_count == 0:
                 print("数据库为空，开始完整导入...")
-            # 如果数据库已有数据但数量少于Calibre书库，先检查完整性，再导入新书
-            elif existing_count > 0 and existing_count < calibre_total:
+            elif existing_count < calibre_total:
                 print(f"数据库已有 {existing_count} 本书，Calibre有 {calibre_total} 本书")
-                print("先检查现有书籍的完整性...")
-                updated = batch_check_completeness()
-                print(f"完整性检查完成：更新了 {updated} 本书")
-                print(f"继续导入剩余的 {calibre_total - existing_count} 本书...")
-                # 从已有数量开始继续导入
-                offset = existing_count
-            # 如果数量相同，只做完整性检查
+                print(f"开始检查所有 {calibre_total} 本书，跳过已存在的，导入新增的...")
+                print("注意：由于书籍顺序可能不同，需要从头开始检查所有书籍")
             else:
-                print("数据库已有数据，仅检查和更新不完整的记录...")
-                updated = batch_check_completeness()
-                import_status['updated'] = updated
-                import_status['imported'] = 0
-                import_status['skipped'] = existing_count - updated
-                import_status['progress'] = existing_count
-                import_status['total'] = existing_count
-                import_status['completed'] = True
-                print(f"完整性检查完成：更新 {updated} 本书")
-                return
+                print(f"数据库已有 {existing_count} 本书，与Calibre书库数量相同或更多")
+                print("开始检查所有书籍，确保完整性...")
+            
+            # 注意：不使用offset跳过，因为数据库中的书籍顺序可能与Calibre不同
+            # 必须从头开始检查所有书籍，依靠书名+作者判断是否已存在
+            offset = 0
             
             while True:
                 import_status['current_book'] = f'处理第 {offset} - {offset + BATCH_SIZE} 本'
@@ -1196,6 +1209,19 @@ def background_import_task():
                 
                 # 每批之间稍微休息，避免占用太多CPU
                 time.sleep(0.5)
+            
+            # 导入完成后检查书籍完整性（只要数据库中有书就进行检查）
+            current_book_count = Book.query.count()
+            if current_book_count > 0:
+                print(f"导入完成，开始检查所有 {current_book_count} 本书的完整性...")
+                batch_updated = batch_check_completeness()
+                # 注意：batch_check_completeness可能会重复检查一些在导入时已经更新的书籍
+                # 但为了确保所有书籍都被检查，这是可以接受的
+                total_updated += batch_updated
+                import_status['updated'] = total_updated
+                print(f"完整性检查完成：批量检查额外更新了 {batch_updated} 本书")
+            else:
+                print("数据库中没有书籍，跳过完整性检查")
             
             import_status['completed'] = True
             if total_failed > 0:
@@ -1248,7 +1274,9 @@ def import_from_calibre(limit=1000, offset=0):
         books = cursor.fetchall()
         imported_count = 0
         skipped_count = 0
+        updated_count = 0
         failed_books = []  # 记录失败的图书
+        skipped_books = []  # 记录跳过的图书
         
         for idx, book_data in enumerate(books, 1):
             if idx % 100 == 0:
@@ -1289,7 +1317,24 @@ def import_from_calibre(limit=1000, offset=0):
                 # 检查是否已存在
                 existing = Book.query.filter_by(title=title, author=author).first()
                 if existing:
-                    skipped_count += 1
+                    # 检查并更新已存在书籍的完整性
+                    updated = update_book_completeness(existing, calibre_id, cursor, path)
+                    if updated:
+                        updated_count += 1
+                        skipped_books.append({
+                            'calibre_id': calibre_id,
+                            'title': title,
+                            'author': author if author else '未知作者',
+                            'reason': '已存在但已更新完整性'
+                        })
+                    else:
+                        skipped_count += 1
+                        skipped_books.append({
+                            'calibre_id': calibre_id,
+                            'title': title,
+                            'author': author if author else '未知作者',
+                            'reason': '数据库中已存在'
+                        })
                     continue
                 
                 # 查询标签
@@ -1371,6 +1416,17 @@ def import_from_calibre(limit=1000, offset=0):
         db.session.commit()
         conn.close()
         
+        # 输出跳过图书的汇总信息并记录到日志
+        if skipped_books:
+            print("\n" + "=" * 80)
+            print(f"跳过的图书汇总 (共 {len(skipped_books)} 本):")
+            print("=" * 80)
+            for idx, book_info in enumerate(skipped_books, 1):
+                info_msg = f"{idx}. Calibre ID: {book_info['calibre_id']} | 书名: {book_info['title']} | 作者: {book_info['author']} | 原因: {book_info['reason']}"
+                print(info_msg)
+                import_logger.info(f"[跳过] {info_msg}")
+            print("=" * 80 + "\n")
+        
         # 输出失败图书的汇总信息
         if failed_books:
             print("\n" + "=" * 80)
@@ -1388,11 +1444,11 @@ def import_from_calibre(limit=1000, offset=0):
             'imported': imported_count,
             'total': total_books,
             'skipped': skipped_count,
-            'updated': 0,
+            'updated': updated_count,
             'processed': len(books),
             'failed': len(failed_books)
         }
-        print(f"本次导入完成: 新增{imported_count}本，跳过{skipped_count}本，失败{len(failed_books)}本，共处理{len(books)}本")
+        print(f"本次导入完成: 新增{imported_count}本，更新{updated_count}本，跳过{skipped_count}本，失败{len(failed_books)}本，共处理{len(books)}本")
         return result
         
     except sqlite3.Error as e:
@@ -1425,6 +1481,373 @@ def api_import_calibre():
         'message': '后台导入已启动',
         'status': import_status
     }), 200
+
+
+@app.route('/api/calibre/diff', methods=['GET'])
+@admin_required
+def api_calibre_diff():
+    """分析本地数据库与Calibre数据库的差异（仅管理员）"""
+    try:
+        if app.debug:
+            print("开始差异分析...")
+        
+        calibre_db = get_calibre_db_path()
+        if not calibre_db:
+            return jsonify({'error': '未找到Calibre数据库'}), 404
+        
+        import sqlite3
+        conn = sqlite3.connect(calibre_db)
+        cursor = conn.cursor()
+        
+        # 获取Calibre书籍总数和基本统计
+        cursor.execute("SELECT COUNT(*) FROM books")
+        calibre_total = cursor.fetchone()[0]
+        
+        if app.debug:
+            print(f"Calibre书库共有 {calibre_total} 本书")
+        
+        # 获取本地书籍总数
+        local_total = Book.query.count()
+        
+        if app.debug:
+            print(f"本地数据库共有 {local_total} 本书，开始构建索引...")
+        
+        # 构建本地书籍字典（用于快速查找）
+        # 注意：不检查文件实际存在性以提高性能，只检查数据库字段是否有值
+        local_books = Book.query.all()
+        local_dict = {}
+        local_keys = set()
+        for book in local_books:
+            # 统一处理：作者为None时使用空字符串，确保与Calibre的匹配逻辑一致
+            key = (book.title, book.author or '')
+            local_keys.add(key)
+            local_dict[key] = {
+                'id': book.id,
+                'title': book.title,
+                'author': book.author or '未知作者',
+                'has_cover': bool(book.cover_image),
+                'has_file': bool(book.file_path),
+                'has_description': bool(book.description),
+                'has_tags': bool(book.tags)
+            }
+        
+        if app.debug:
+            print("本地索引构建完成，开始查询Calibre书库...")
+        
+        # 只查询Calibre中的书籍基本信息用于差异对比
+        cursor.execute("""
+            SELECT b.id, b.title, 
+                   (SELECT a.name FROM authors a 
+                    JOIN books_authors_link bal ON a.id = bal.author 
+                    WHERE bal.book = b.id LIMIT 1) as author,
+                   b.path
+            FROM books b
+        """)
+        
+        if app.debug:
+            print("开始对比差异...")
+        
+        only_in_calibre = []
+        only_in_local = []
+        incomplete_books = []
+        calibre_keys = set()
+        
+        # 遍历Calibre书籍，只记录差异
+        for calibre_id, title, author, path in cursor.fetchall():
+            # 统一处理：作者为None时使用空字符串，确保与本地的匹配逻辑一致
+            key = (title, author or '')
+            calibre_keys.add(key)
+            
+            if key not in local_dict:
+                # 只在Calibre中存在（待导入）
+                only_in_calibre.append({
+                    'calibre_id': calibre_id,
+                    'title': title,
+                    'author': author or '未知作者',
+                    'path': path
+                })
+            else:
+                # 检查是否信息不完整
+                local_info = local_dict[key]
+                if not all([local_info['has_cover'], local_info['has_file'], 
+                           local_info['has_description'], local_info['has_tags']]):
+                    incomplete_books.append({
+                        **local_info,
+                        'calibre_id': calibre_id,
+                        'calibre_path': path
+                    })
+        
+        # 查找只在本地存在的书籍（Calibre中已删除）
+        if app.debug:
+            print("检查孤立书籍...")
+        
+        for key in local_keys:
+            if key not in calibre_keys:
+                only_in_local.append(local_dict[key])
+        
+        conn.close()
+        
+        # 计算完整的书籍数量
+        complete_count = local_total - len(incomplete_books) - len(only_in_local)
+        
+        if app.debug:
+            print(f"差异分析完成: 仅在Calibre={len(only_in_calibre)}, 仅在本地={len(only_in_local)}, 不完整={len(incomplete_books)}")
+        
+        return jsonify({
+            'summary': {
+                'calibre_total': calibre_total,
+                'local_total': local_total,
+                'only_in_calibre': len(only_in_calibre),
+                'only_in_local': len(only_in_local),
+                'incomplete': len(incomplete_books),
+                'complete': complete_count
+            },
+            'only_in_calibre': only_in_calibre[:100],  # 最多返回100条预览
+            'only_in_local': only_in_local[:100],
+            'incomplete_books': incomplete_books[:100],
+            'has_more': {
+                'only_in_calibre': len(only_in_calibre) > 100,
+                'only_in_local': len(only_in_local) > 100,
+                'incomplete': len(incomplete_books) > 100
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"差异分析失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/calibre/import-selected', methods=['POST'])
+@admin_required
+def api_import_selected():
+    """导入选定的书籍（仅管理员）"""
+    global import_status
+    
+    if import_status['running']:
+        return jsonify({
+            'error': '导入任务已在运行中',
+            'status': import_status
+        }), 400
+    
+    data = request.get_json()
+    action = data.get('action')  # 'import_new', 'update_incomplete', 'remove_orphaned'
+    book_ids = data.get('book_ids', [])  # Calibre IDs 或 本地 IDs
+    
+    if not action:
+        return jsonify({'error': '请指定操作类型'}), 400
+    
+    # 启动后台线程处理选定的操作
+    def selective_import_task():
+        global import_status
+        import_status['running'] = True
+        import_status['start_time'] = datetime.utcnow()
+        import_status['completed'] = False
+        import_status['error'] = None
+        import_status['acknowledged'] = False
+        
+        try:
+            with app.app_context():
+                if action == 'import_new':
+                    # 导入选定的新书
+                    result = import_selected_books(book_ids)
+                    import_status['imported'] = result.get('imported', 0)
+                    import_status['failed'] = result.get('failed', 0)
+                    
+                elif action == 'update_incomplete':
+                    # 更新不完整的书籍
+                    result = update_selected_books(book_ids)
+                    import_status['updated'] = result.get('updated', 0)
+                    
+                elif action == 'remove_orphaned':
+                    # 删除孤立的书籍（只在本地有，Calibre中已删除）
+                    result = remove_selected_books(book_ids)
+                    import_status['skipped'] = result.get('removed', 0)
+                
+                import_status['completed'] = True
+                print(f"选择性操作完成: {action}")
+                
+        except Exception as e:
+            import_status['error'] = str(e)
+            print(f"选择性操作失败: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            import_status['running'] = False
+    
+    thread = threading.Thread(target=selective_import_task, daemon=True)
+    thread.start()
+    
+    return jsonify({
+        'message': f'已启动{action}操作',
+        'status': import_status
+    }), 200
+
+
+def import_selected_books(calibre_ids):
+    """导入指定的Calibre书籍"""
+    calibre_db = get_calibre_db_path()
+    if not calibre_db:
+        return {'imported': 0, 'failed': 0, 'error': '未找到Calibre数据库'}
+    
+    try:
+        import sqlite3
+        conn = sqlite3.connect(calibre_db)
+        cursor = conn.cursor()
+        
+        imported = 0
+        failed = 0
+        
+        for calibre_id in calibre_ids:
+            try:
+                # 查询书籍信息
+                cursor.execute("""
+                    SELECT b.id, b.title, b.path, b.timestamp
+                    FROM books b
+                    WHERE b.id = ?
+                """, (calibre_id,))
+                
+                book_data = cursor.fetchone()
+                if not book_data:
+                    failed += 1
+                    continue
+                
+                calibre_id, title, path, timestamp = book_data
+                
+                # 查询作者
+                cursor.execute("""
+                    SELECT a.name FROM authors a
+                    JOIN books_authors_link bal ON a.id = bal.author
+                    WHERE bal.book = ?
+                    LIMIT 1
+                """, (calibre_id,))
+                author_row = cursor.fetchone()
+                author = author_row[0] if author_row else None
+                
+                # 检查是否已存在
+                existing = Book.query.filter_by(title=title, author=author).first()
+                if existing:
+                    continue
+                
+                # 查询其他信息
+                cursor.execute("SELECT p.name FROM publishers p JOIN books_publishers_link bpl ON p.id = bpl.publisher WHERE bpl.book = ? LIMIT 1", (calibre_id,))
+                publisher_row = cursor.fetchone()
+                publisher = publisher_row[0] if publisher_row else None
+                
+                cursor.execute("SELECT val FROM identifiers WHERE book = ? AND type = 'isbn' LIMIT 1", (calibre_id,))
+                isbn_row = cursor.fetchone()
+                isbn = isbn_row[0] if isbn_row else None
+                
+                cursor.execute("SELECT t.name FROM tags t JOIN books_tags_link btl ON t.id = btl.tag WHERE btl.book = ?", (calibre_id,))
+                tags = [row[0] for row in cursor.fetchall()]
+                
+                cursor.execute("SELECT r.rating FROM ratings r JOIN books_ratings_link brl ON r.id = brl.rating WHERE brl.book = ? LIMIT 1", (calibre_id,))
+                rating_row = cursor.fetchone()
+                rating = (rating_row[0] / 2.0) if rating_row and rating_row[0] else 0.0
+                
+                cursor.execute("SELECT text FROM comments WHERE book = ? LIMIT 1", (calibre_id,))
+                desc_row = cursor.fetchone()
+                description = desc_row[0] if desc_row else None
+                
+                # 创建书籍
+                book = Book(
+                    title=title,
+                    author=author,
+                    publisher=publisher,
+                    isbn=isbn,
+                    description=description,
+                    rating=rating,
+                    tags=','.join(tags) if tags else ''
+                )
+                
+                # 设置文件路径
+                if path:
+                    book_dir = os.path.join(app.config['CALIBRE_LIBRARY_PATH'], path)
+                    if os.path.exists(book_dir):
+                        cover_path = os.path.join(book_dir, 'cover.jpg')
+                        if os.path.exists(cover_path):
+                            book.cover_image = cover_path
+                        
+                        for file in os.listdir(book_dir):
+                            if file.lower().endswith(('.epub', '.pdf', '.mobi', '.azw3', '.txt')):
+                                book.file_path = os.path.join(book_dir, file)
+                                book.file_format = os.path.splitext(file)[1][1:].upper()
+                                book.file_size = os.path.getsize(book.file_path)
+                                break
+                
+                db.session.add(book)
+                imported += 1
+                
+            except Exception as e:
+                failed += 1
+                print(f"导入书籍 {calibre_id} 失败: {e}")
+        
+        db.session.commit()
+        conn.close()
+        
+        return {'imported': imported, 'failed': failed}
+        
+    except Exception as e:
+        print(f"导入选定书籍失败: {e}")
+        return {'imported': 0, 'failed': len(calibre_ids), 'error': str(e)}
+
+
+def update_selected_books(local_ids):
+    """更新指定的本地书籍"""
+    calibre_db = get_calibre_db_path()
+    if not calibre_db:
+        return {'updated': 0, 'error': '未找到Calibre数据库'}
+    
+    try:
+        import sqlite3
+        conn = sqlite3.connect(calibre_db)
+        cursor = conn.cursor()
+        
+        updated = 0
+        
+        for local_id in local_ids:
+            book = db.session.get(Book, local_id)
+            if not book:
+                continue
+            
+            # 查找对应的Calibre记录
+            cursor.execute("""
+                SELECT b.id, b.path FROM books b
+                WHERE b.title = ?
+                LIMIT 1
+            """, (book.title,))
+            
+            calibre_row = cursor.fetchone()
+            if calibre_row:
+                calibre_id, path = calibre_row
+                if update_book_completeness(book, calibre_id, cursor, path):
+                    updated += 1
+        
+        conn.close()
+        return {'updated': updated}
+        
+    except Exception as e:
+        print(f"更新选定书籍失败: {e}")
+        return {'updated': 0, 'error': str(e)}
+
+
+def remove_selected_books(local_ids):
+    """删除指定的本地书籍"""
+    try:
+        removed = 0
+        for local_id in local_ids:
+            book = db.session.get(Book, local_id)
+            if book:
+                db.session.delete(book)
+                removed += 1
+        
+        db.session.commit()
+        return {'removed': removed}
+        
+    except Exception as e:
+        print(f"删除选定书籍失败: {e}")
+        return {'removed': 0, 'error': str(e)}
 
 
 @app.route('/api/calibre/import-status', methods=['GET'])
@@ -1481,19 +1904,14 @@ def init_db():
         db.create_all()
         print("数据库初始化完成")
         
-        # 如果配置了Calibre书库，自动在后台开始导入
+        # 如果配置了Calibre书库，提示用户可以手动导入
         if app.config['CALIBRE_LIBRARY_PATH']:
             calibre_db = get_calibre_db_path()
             if calibre_db:
-                print("检测到Calibre书库，5秒后将自动开始后台导入...")
-                # 延迟5秒启动，确保init完成
-                def delayed_start():
-                    time.sleep(5)
-                    print("开始后台导入任务...")
-                    background_import_task()
-                
-                thread = threading.Thread(target=delayed_start, daemon=True)
-                thread.start()
+                print("检测到Calibre书库配置")
+                print("提示：可通过以下方式导入书籍：")
+                print("  1. 访问 /calibre-diff 页面进行差异分析和选择性导入（推荐）")
+                print("  2. 调用 /api/calibre/import 接口进行全量导入")
             else:
                 print("提示：未找到Calibre数据库文件")
 
