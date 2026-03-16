@@ -778,6 +778,51 @@
             color: #999;
         }
 
+        .btn-ai {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .btn-ai:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-ai:active {
+            transform: translateY(0);
+        }
+        
+        .btn-ai:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
         .form-group {
             margin-bottom: 20px;
         }
@@ -1606,6 +1651,8 @@
                 <button class="theme-btn" data-theme="ocean" onclick="switchTheme('ocean')" title="海洋主题"></button>
             </div>
             <button class="btn-primary" id="calibreDiffBtn" onclick="openCalibreDiff()" style="display: none; padding: 8px 15px; font-size: 13px;">📊 书库差异分析</button>
+            <button class="btn-primary" id="batchAiBtn" onclick="openBatchAiModal()" style="display: none; padding: 8px 15px; font-size: 13px;">🤖 批量AI补充</button>
+            <button class="btn-primary" id="autoFillConfigBtn" onclick="openAutoFillConfigModal()" style="display: none; padding: 8px 15px; font-size: 13px;">⚙️ 自动补充</button>
             <button class="btn-primary" id="userManageBtn" onclick="openUserManageModal()" style="display: none; padding: 8px 15px; font-size: 13px;">👥 用户管理</button>
             <span id="username"></span>
             <button class="btn-logout" onclick="logout()">退出登录</button>
@@ -1683,7 +1730,12 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">添加图书</h2>
-                <button class="btn-close" onclick="closeEditModal()">&times;</button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="button" class="btn-ai" onclick="openAiAssistant()" title="使用AI辅助填写书籍信息">
+                        🤖 AI辅助填写
+                    </button>
+                    <button class="btn-close" onclick="closeEditModal()">&times;</button>
+                </div>
             </div>
             <form id="bookForm">
                 <input type="hidden" id="bookId">
@@ -1728,6 +1780,32 @@
         </div>
     </div>
 
+    <!-- AI辅助填写对话框 -->
+    <div class="modal" id="aiAssistantModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>🤖 AI辅助填写书籍信息</h2>
+                <button class="btn-close" onclick="closeAiAssistant()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <div class="form-group">
+                    <label>请输入书籍关键词（书名、作者、ISBN等）</label>
+                    <input type="text" id="aiSearchQuery" placeholder="例如：深入理解计算机系统" style="width: 100%;">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        提示：输入更完整的信息可以获得更准确的结果
+                    </small>
+                </div>
+                <div id="aiStatusMessage" style="margin: 15px 0; padding: 10px; border-radius: 5px; display: none;"></div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn-secondary" onclick="closeAiAssistant()">取消</button>
+                    <button type="button" class="btn-primary" onclick="searchBookWithAi()" id="aiSearchBtn">
+                        <span id="aiSearchBtnText">🔍 搜索</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 用户管理模态框 -->
     <div class="modal" id="userManageModal">
         <div class="modal-content" style="max-width: 900px;">
@@ -1737,6 +1815,114 @@
             </div>
             <div id="userManageContent">
                 <!-- 动态加载用户列表 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量AI补充模态框 -->
+    <div class="modal" id="batchAiModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>🤖 批量AI补充书籍信息</h2>
+                <button class="btn-close" onclick="closeBatchAiModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <div class="form-group">
+                    <label>选择补充范围</label>
+                    <select id="batchAiScope" style="width: 100%; padding: 8px;">
+                        <option value="missing_info">仅补充缺失信息的书籍（推荐）</option>
+                        <option value="all">所有书籍（谨慎使用）</option>
+                    </select>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        提示：批量处理会调用AI服务，建议先选择"缺失信息"范围测试
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>批处理数量限制</label>
+                    <input type="number" id="batchAiLimit" value="50" min="1" style="width: 100%; padding: 8px;">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        单次最多处理的书籍数量，建议从小数量开始测试
+                    </small>
+                </div>
+                
+                <div id="batchAiProgress" style="display: none; margin-top: 20px;">
+                    <div style="margin-bottom: 10px;">
+                        <strong>处理进度：</strong>
+                        <span id="batchAiProgressText">0/0</span>
+                    </div>
+                    <div style="background: #f0f0f0; border-radius: 5px; overflow: hidden; height: 30px;">
+                        <div id="batchAiProgressBar" style="height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <div id="batchAiCurrentBook" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+                </div>
+                
+                <div id="batchAiLog" style="display: none; margin-top: 20px; max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn-secondary" onclick="closeBatchAiModal()" id="batchAiCancelBtn">取消</button>
+                    <button type="button" class="btn-primary" onclick="startBatchAi()" id="batchAiStartBtn">
+                        🚀 开始处理
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="stopBatchAi()" id="batchAiStopBtn" style="display: none;">
+                        ⏸️ 停止
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自动补充配置模态框 -->
+    <div class="modal" id="autoFillConfigModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>🤖 自动补充配置</h2>
+                <button class="btn-close" onclick="closeAutoFillConfigModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="autoFillEnabled" onchange="updateAutoFillConfig()" style="width: 18px; height: 18px; cursor: pointer;">
+                        <span style="font-weight: normal; margin: 0;">启用后台自动补充</span>
+                    </label>
+                    <small style="color: #666; display: block; margin-top: 5px; margin-left: 28px;">
+                        系统空闲时自动补充书籍信息，检测到用户操作时暂停
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>空闲时间阈值（秒）</label>
+                    <input type="number" id="autoFillIdleThreshold" value="300" min="60" style="width: 100%; padding: 8px;" onchange="updateAutoFillConfig()">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        系统无操作多少秒后视为空闲（默认300秒=5分钟）
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>每批处理数量</label>
+                    <input type="number" id="autoFillBatchSize" value="10" min="1" max="50" style="width: 100%; padding: 8px;" onchange="updateAutoFillConfig()">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        每次自动处理的书籍数量
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>检查间隔（秒）</label>
+                    <input type="number" id="autoFillInterval" value="60" min="30" style="width: 100%; padding: 8px;" onchange="updateAutoFillConfig()">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        每隔多少秒检查一次是否需要启动任务
+                    </small>
+                </div>
+                
+                <div id="autoFillStatus" style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
+                    <div><strong>当前状态：</strong><span id="autoFillStatusText">未启用</span></div>
+                    <div style="margin-top: 5px;"><strong>最后活动：</strong><span id="autoFillLastActivity">-</span></div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn-secondary" onclick="closeAutoFillConfigModal()">关闭</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2348,7 +2534,9 @@
                 }
 
                 if (response.ok) {
-                    alert(editingBookId ? '更新成功' : '添加成功');
+                    const result = await response.json();
+                    // 显示详细的成功消息，包含Calibre同步状态
+                    alert(result.message || (editingBookId ? '更新成功' : '添加成功'));
                     closeEditModal();
                     loadBooks(document.getElementById('searchInput').value);
                     loadStats();
@@ -2357,7 +2545,8 @@
                     alert(error.error || '操作失败');
                 }
             } catch (error) {
-                alert('操作失败');
+                console.error('操作失败:', error);
+                alert('操作失败: ' + error.message);
             }
         });
 
@@ -2374,6 +2563,387 @@
         // 打开书库差异分析页面
         function openCalibreDiff() {
             window.location.href = '/calibre-diff';
+        }
+
+        // ==================== AI辅助功能 ====================
+        
+        function openAiAssistant() {
+            document.getElementById('aiAssistantModal').classList.add('active');
+            
+            // 自动读取表单中已有的信息作为搜索关键词（过滤无效值）
+            const invalidValues = ['未知', 'unknown', 'null', 'none', '无', 'n/a', ''];
+            const title = document.getElementById('title').value.trim();
+            const author = document.getElementById('author').value.trim();
+            const isbn = document.getElementById('isbn').value.trim();
+            
+            // 检查值是否有效
+            const isValid = (value) => value && !invalidValues.includes(value.toLowerCase());
+            
+            // 组合搜索关键词（过滤掉"未知"等无效值）
+            let query = '';
+            if (isValid(title)) query += title;
+            if (isValid(author)) query += (query ? ' ' : '') + author;
+            if (isValid(isbn) && !query) query = isbn; // 只有在没有书名和作者时才使用ISBN
+            
+            document.getElementById('aiSearchQuery').value = query;
+            document.getElementById('aiSearchQuery').focus();
+            hideAiStatus();
+        }
+        
+        function closeAiAssistant() {
+            document.getElementById('aiAssistantModal').classList.remove('active');
+        }
+        
+        function showAiStatus(message, type = 'info') {
+            const statusEl = document.getElementById('aiStatusMessage');
+            statusEl.style.display = 'block';
+            statusEl.textContent = message;
+            
+            if (type === 'loading') {
+                statusEl.style.background = '#e3f2fd';
+                statusEl.style.color = '#1976d2';
+                statusEl.style.border = '1px solid #90caf9';
+            } else if (type === 'success') {
+                statusEl.style.background = '#e8f5e9';
+                statusEl.style.color = '#2e7d32';
+                statusEl.style.border = '1px solid #81c784';
+            } else if (type === 'error') {
+                statusEl.style.background = '#ffebee';
+                statusEl.style.color = '#c62828';
+                statusEl.style.border = '1px solid #ef5350';
+            } else {
+                statusEl.style.background = '#fff3e0';
+                statusEl.style.color = '#e65100';
+                statusEl.style.border = '1px solid #ffb74d';
+            }
+        }
+        
+        function hideAiStatus() {
+            document.getElementById('aiStatusMessage').style.display = 'none';
+        }
+        
+        async function searchBookWithAi() {
+            const query = document.getElementById('aiSearchQuery').value.trim();
+            
+            if (!query) {
+                showAiStatus('请输入搜索关键词', 'error');
+                return;
+            }
+            
+            const searchBtn = document.getElementById('aiSearchBtn');
+            const btnText = document.getElementById('aiSearchBtnText');
+            
+            // 禁用按钮
+            searchBtn.disabled = true;
+            btnText.textContent = '⏳ 搜索中...';
+            showAiStatus('正在使用AI搜索书籍信息，请稍候...', 'loading');
+            
+            try {
+                const response = await fetch('/api/ai/search-book-info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const bookInfo = data.book_info;
+                    
+                    // 填充表单
+                    if (bookInfo.title) document.getElementById('title').value = bookInfo.title;
+                    if (bookInfo.author) document.getElementById('author').value = bookInfo.author;
+                    if (bookInfo.publisher) document.getElementById('publisher').value = bookInfo.publisher;
+                    if (bookInfo.isbn) document.getElementById('isbn').value = bookInfo.isbn;
+                    if (bookInfo.publication_date) document.getElementById('publicationDate').value = bookInfo.publication_date;
+                    if (bookInfo.language) document.getElementById('language').value = bookInfo.language;
+                    if (bookInfo.tags) document.getElementById('tags').value = bookInfo.tags;
+                    if (bookInfo.description) document.getElementById('description').value = bookInfo.description;
+                    
+                    showAiStatus('✅ 信息已自动填充！请检查并修改需要调整的内容。', 'success');
+                    
+                    // 2秒后关闭对话框
+                    setTimeout(() => {
+                        closeAiAssistant();
+                    }, 2000);
+                } else {
+                    showAiStatus(data.error || 'AI搜索失败，请重试', 'error');
+                }
+            } catch (error) {
+                console.error('AI搜索错误:', error);
+                showAiStatus('网络错误或AI服务不可用：' + error.message, 'error');
+            } finally {
+                // 恢复按钮
+                searchBtn.disabled = false;
+                btnText.textContent = '🔍 搜索';
+            }
+        }
+        
+        // AI对话框回车搜索
+        document.addEventListener('DOMContentLoaded', function() {
+            const aiSearchInput = document.getElementById('aiSearchQuery');
+            if (aiSearchInput) {
+                aiSearchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchBookWithAi();
+                    }
+                });
+            }
+        });
+
+        // ==================== 批量AI补充功能 ====================
+        
+        let batchAiRunning = false;
+        let batchAiStopped = false;
+        
+        function openBatchAiModal() {
+            document.getElementById('batchAiModal').classList.add('active');
+            document.getElementById('batchAiProgress').style.display = 'none';
+            document.getElementById('batchAiLog').style.display = 'none';
+            document.getElementById('batchAiLog').innerHTML = '';
+            batchAiStopped = false;
+        }
+        
+        function closeBatchAiModal() {
+            if (batchAiRunning) {
+                if (!confirm('批量处理正在进行中，确定要关闭吗？')) {
+                    return;
+                }
+                stopBatchAi();
+            }
+            document.getElementById('batchAiModal').classList.remove('active');
+        }
+        
+        // ==================== 自动补充配置 ====================
+        
+        function openAutoFillConfigModal() {
+            document.getElementById('autoFillConfigModal').classList.add('active');
+            loadAutoFillConfig();
+        }
+        
+        function closeAutoFillConfigModal() {
+            document.getElementById('autoFillConfigModal').classList.remove('active');
+        }
+        
+        async function loadAutoFillConfig() {
+            try {
+                const response = await fetch('/api/ai/auto-fill/config');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const config = data.config;
+                    document.getElementById('autoFillEnabled').checked = config.enabled;
+                    document.getElementById('autoFillIdleThreshold').value = config.idle_threshold;
+                    document.getElementById('autoFillBatchSize').value = config.batch_size;
+                    document.getElementById('autoFillInterval').value = config.interval;
+                    
+                    updateAutoFillStatus(config);
+                }
+            } catch (error) {
+                console.error('加载自动补充配置失败:', error);
+            }
+        }
+        
+        async function updateAutoFillConfig() {
+            try {
+                const config = {
+                    enabled: document.getElementById('autoFillEnabled').checked,
+                    idle_threshold: parseInt(document.getElementById('autoFillIdleThreshold').value),
+                    batch_size: parseInt(document.getElementById('autoFillBatchSize').value),
+                    interval: parseInt(document.getElementById('autoFillInterval').value)
+                };
+                
+                const response = await fetch('/api/ai/auto-fill/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 重新加载配置以更新状态
+                    setTimeout(() => loadAutoFillConfig(), 500);
+                } else {
+                    alert('配置更新失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('更新自动补充配置失败:', error);
+                alert('配置更新失败: ' + error.message);
+            }
+        }
+        
+        function updateAutoFillStatus(config) {
+            let statusText = '';
+            let statusColor = '';
+            
+            if (!config.enabled) {
+                statusText = '未启用';
+                statusColor = '#999';
+            } else if (config.paused) {
+                statusText = '已暂停';
+                statusColor = '#ff9800';
+            } else if (config.running) {
+                statusText = '运行中';
+                statusColor = '#4caf50';
+            } else {
+                statusText = '等待启动';
+                statusColor = '#2196f3';
+            }
+            
+            document.getElementById('autoFillStatusText').textContent = statusText;
+            document.getElementById('autoFillStatusText').style.color = statusColor;
+            
+            if (config.last_activity) {
+                const lastActivity = new Date(config.last_activity);
+                const now = new Date();
+                const diff = Math.floor((now - lastActivity) / 1000);
+                document.getElementById('autoFillLastActivity').textContent = 
+                    diff < 60 ? `${diff}秒前` : 
+                    diff < 3600 ? `${Math.floor(diff/60)}分钟前` :
+                    `${Math.floor(diff/3600)}小时前`;
+            } else {
+                document.getElementById('autoFillLastActivity').textContent = '-';
+            }
+        }
+        
+        function addBatchAiLog(message, type = 'info') {
+            const logEl = document.getElementById('batchAiLog');
+            const time = new Date().toLocaleTimeString();
+            let color = '#333';
+            if (type === 'success') color = '#2e7d32';
+            if (type === 'error') color = '#c62828';
+            if (type === 'warning') color = '#f57c00';
+            
+            logEl.innerHTML += `<div style="color: ${color}; margin-bottom: 5px;">[${time}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        async function startBatchAi() {
+            const scope = document.getElementById('batchAiScope').value;
+            const limit = parseInt(document.getElementById('batchAiLimit').value);
+            
+            if (limit < 1) {
+                alert('批处理数量必须大于0');
+                return;
+            }
+            
+            if (!confirm(`确定要开始批量AI补充吗？\n范围：${scope === 'all' ? '所有书籍' : '缺失信息的书籍'}\n数量限制：${limit}本`)) {
+                return;
+            }
+            
+            batchAiRunning = true;
+            batchAiStopped = false;
+            
+            document.getElementById('batchAiStartBtn').style.display = 'none';
+            document.getElementById('batchAiStopBtn').style.display = 'inline-block';
+            document.getElementById('batchAiCancelBtn').disabled = true;
+            document.getElementById('batchAiScope').disabled = true;
+            document.getElementById('batchAiLimit').disabled = true;
+            
+            document.getElementById('batchAiProgress').style.display = 'block';
+            document.getElementById('batchAiLog').style.display = 'block';
+            
+            addBatchAiLog('开始批量AI补充任务...');
+            
+            try {
+                const response = await fetch('/api/ai/batch-fill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scope: scope, limit: limit })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const taskId = data.task_id;
+                    addBatchAiLog(`任务已启动，任务ID: ${taskId}，找到 ${data.total} 本书籍待处理`);
+                    
+                    // 开始轮询进度
+                    pollBatchAiProgress(taskId);
+                } else {
+                    addBatchAiLog(data.error || '启动任务失败', 'error');
+                    resetBatchAiUI();
+                }
+            } catch (error) {
+                console.error('批量AI补充错误:', error);
+                addBatchAiLog('网络错误：' + error.message, 'error');
+                resetBatchAiUI();
+            }
+        }
+        
+        function stopBatchAi() {
+            batchAiStopped = true;
+            addBatchAiLog('用户请求停止任务...', 'warning');
+        }
+        
+        async function pollBatchAiProgress(taskId) {
+            if (batchAiStopped) {
+                addBatchAiLog('任务已停止', 'warning');
+                resetBatchAiUI();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/ai/batch-progress/${taskId}`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const { processed, total, current_book, status } = data;
+                    
+                    // 更新进度条
+                    const percent = total > 0 ? Math.round((processed / total) * 100) : 0;
+                    document.getElementById('batchAiProgressBar').style.width = percent + '%';
+                    document.getElementById('batchAiProgressText').textContent = `${processed}/${total} (${percent}%)`;
+                    
+                    if (current_book) {
+                        document.getElementById('batchAiCurrentBook').textContent = `正在处理: ${current_book}`;
+                    }
+                    
+                    // 处理日志
+                    if (data.logs && data.logs.length > 0) {
+                        data.logs.forEach(log => {
+                            addBatchAiLog(log.message, log.type);
+                        });
+                    }
+                    
+                    if (status === 'completed') {
+                        addBatchAiLog(`✅ 任务完成！成功处理 ${data.success_count || processed} 本，失败 ${data.failed_count || 0} 本`, 'success');
+                        resetBatchAiUI();
+                        
+                        // 刷新书籍列表
+                        setTimeout(() => {
+                            loadBooks();
+                        }, 1000);
+                    } else if (status === 'running') {
+                        // 继续轮询
+                        setTimeout(() => pollBatchAiProgress(taskId), 1000);
+                    } else {
+                        addBatchAiLog('任务状态异常: ' + status, 'error');
+                        resetBatchAiUI();
+                    }
+                } else {
+                    addBatchAiLog('获取进度失败: ' + (data.error || '未知错误'), 'error');
+                    resetBatchAiUI();
+                }
+            } catch (error) {
+                console.error('轮询进度错误:', error);
+                addBatchAiLog('获取进度失败: ' + error.message, 'error');
+                // 继续轮询
+                setTimeout(() => pollBatchAiProgress(taskId), 2000);
+            }
+        }
+        
+        function resetBatchAiUI() {
+            batchAiRunning = false;
+            document.getElementById('batchAiStartBtn').style.display = 'inline-block';
+            document.getElementById('batchAiStopBtn').style.display = 'none';
+            document.getElementById('batchAiCancelBtn').disabled = false;
+            document.getElementById('batchAiScope').disabled = false;
+            document.getElementById('batchAiLimit').disabled = false;
         }
 
         // 从Calibre导入
@@ -2488,6 +3058,8 @@
                     if (currentUser.is_admin) {
                         document.getElementById('userManageBtn').style.display = 'block';
                         document.getElementById('calibreDiffBtn').style.display = 'block';
+                        document.getElementById('batchAiBtn').style.display = 'block';
+                        document.getElementById('autoFillConfigBtn').style.display = 'block';
                     }
                     
                     // 如果不是管理员，隐藏编辑和删除按钮

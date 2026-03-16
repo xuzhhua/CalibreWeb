@@ -31,6 +31,13 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 app.config['CALIBRE_LIBRARY_PATH'] = os.environ.get('CALIBRE_LIBRARY_PATH', '')
 app.config['USE_CALIBRE_DB'] = os.environ.get('USE_CALIBRE_DB', 'False').lower() == 'true'
 
+# AI辅助功能配置
+app.config['OLLAMA_BASE_URL'] = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+app.config['OLLAMA_MODEL'] = os.environ.get('OLLAMA_MODEL', 'qwen2.5:latest')
+app.config['OLLAMA_TIMEOUT'] = int(os.environ.get('OLLAMA_TIMEOUT', '60'))
+app.config['SEARXNG_BASE_URL'] = os.environ.get('SEARXNG_BASE_URL', 'http://localhost:8080')
+app.config['SEARXNG_ENABLED'] = os.environ.get('SEARXNG_ENABLED', 'True').lower() == 'true'
+
 db = SQLAlchemy(app)
 
 # 确保上传文件夹存在
@@ -116,6 +123,7 @@ class Book(db.Model):
     language = db.Column(db.String(50))
     tags = db.Column(db.String(500))
     rating = db.Column(db.Float, default=0.0)
+    calibre_id = db.Column(db.Integer, nullable=True, index=True)  # Calibre数据库中的书籍ID
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -172,6 +180,20 @@ class UserBookStatus(db.Model):
 
 
 # ==================== 装饰器 ====================
+
+@app.before_request
+def track_user_activity():
+    """跟踪用户活动，用于自动补充任务的空闲检测"""
+    # 排除静态文件和健康检查请求
+    if request.path.startswith('/static/') or request.path == '/health':
+        return
+    
+    # 排除自动补充相关的API（避免自动任务触发活动检测）
+    if '/api/ai/auto-fill/' in request.path or '/api/ai/batch-progress/' in request.path:
+        return
+    
+    # 更新最后活动时间
+    update_last_activity()
 
 def login_required(f):
     """需要登录的装饰器"""
@@ -580,7 +602,23 @@ def api_update_book(book_id):
     book.updated_at = datetime.utcnow()
     db.session.commit()
     
-    return jsonify({'message': '书籍更新成功', 'book': book.to_dict()}), 200
+    # 同步更新到Calibre数据库
+    calibre_updated = update_calibre_metadata(book)
+    
+    # 根据Calibre同步结果构造提示消息
+    if calibre_updated:
+        message = '书籍更新成功，已同步到Calibre数据库'
+    else:
+        message = '书籍更新成功，但未能同步到Calibre数据库（可能该书籍不存在于Calibre中）'
+        app.logger.warning(f"书籍 {book.title} (ID: {book_id}) 更新成功，但Calibre同步失败")
+    
+    response_data = {
+        'message': message,
+        'book': book.to_dict(),
+        'calibre_synced': calibre_updated
+    }
+    
+    return jsonify(response_data), 200
 
 
 @app.route('/api/books/<int:book_id>', methods=['DELETE'])
@@ -693,10 +731,16 @@ def api_books_stats():
         Book.language, db.func.count(Book.id)
     ).group_by(Book.language).all()
     
+    # 将None转换为"未知"，确保所有键都是字符串
+    language_stats = {
+        (lang if lang is not None else '未知'): count 
+        for lang, count in books_by_language
+    }
+    
     return jsonify({
         'total_books': total_books,
         'total_users': total_users,
-        'books_by_language': dict(books_by_language)
+        'books_by_language': language_stats
     }), 200
 
 
@@ -827,6 +871,176 @@ def api_preview_book(book_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ==================== 封面搜索和下载功能 ====================
+
+def search_and_download_cover(book, query):
+    """搜索并下载书籍封面
+    
+    Args:
+        book: Book对象
+        query: 搜索关键词
+    
+    Returns:
+        tuple: (success: bool, cover_path: str or None, message: str)
+    """
+    try:
+        import requests
+        from urllib.parse import quote
+        
+        # 1. 使用SearXNG搜索图片
+        if not app.config.get('SEARXNG_ENABLED') or not app.config.get('SEARXNG_BASE_URL'):
+            return False, None, "SearXNG未配置"
+        
+        # 搜索封面图片
+        search_url = f"{app.config['SEARXNG_BASE_URL']}/search"
+        params = {
+            'q': f"{query} 封面 book cover",
+            'format': 'json',
+            'categories': 'images',
+            'language': 'zh-CN'
+        }
+        
+        response = requests.get(search_url, params=params, timeout=10)
+        if response.status_code != 200:
+            return False, None, "搜索请求失败"
+        
+        results = response.json().get('results', [])
+        if not results:
+            return False, None, "未找到封面图片"
+        
+        # 2. 尝试下载前3张图片，选择第一张成功下载的
+        for i, result in enumerate(results[:3]):
+            img_url = result.get('img_src') or result.get('url')
+            if not img_url:
+                continue
+            
+            try:
+                # 下载图片
+                img_response = requests.get(img_url, timeout=10, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                })
+                
+                if img_response.status_code != 200:
+                    continue
+                
+                # 检查是否为图片
+                content_type = img_response.headers.get('Content-Type', '')
+                if 'image' not in content_type:
+                    continue
+                
+                # 确定文件扩展名
+                if 'jpeg' in content_type or 'jpg' in content_type:
+                    ext = '.jpg'
+                elif 'png' in content_type:
+                    ext = '.png'
+                elif 'webp' in content_type:
+                    ext = '.webp'
+                else:
+                    ext = '.jpg'  # 默认
+                
+                # 保存封面
+                import uuid
+                filename = f"cover_{book.id}_{uuid.uuid4().hex[:8]}{ext}"
+                cover_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                
+                with open(cover_path, 'wb') as f:
+                    f.write(img_response.content)
+                
+                # 验证文件大小（至少1KB，最多10MB）
+                file_size = os.path.getsize(cover_path)
+                if file_size < 1024 or file_size > 10 * 1024 * 1024:
+                    os.remove(cover_path)
+                    continue
+                
+                app.logger.info(f"成功下载封面: {book.title}, URL: {img_url}, Size: {file_size} bytes")
+                return True, cover_path, "封面下载成功"
+                
+            except Exception as e:
+                app.logger.warning(f"下载封面失败 (尝试 {i+1}/3): {str(e)}")
+                continue
+        
+        return False, None, "所有封面下载尝试均失败"
+        
+    except Exception as e:
+        app.logger.error(f"搜索封面异常: {str(e)}")
+        return False, None, f"搜索封面异常: {str(e)}"
+
+
+def update_calibre_cover(book):
+    """更新Calibre数据库中的书籍封面
+    
+    Args:
+        book: Book对象，包含封面路径
+    
+    Returns:
+        bool: 更新是否成功
+    """
+    if not book.cover_image or not book.calibre_id:
+        return False
+    
+    calibre_db = get_calibre_db_path()
+    if not calibre_db:
+        return False
+    
+    try:
+        # 获取Calibre库路径
+        library_path = app.config.get('CALIBRE_LIBRARY_PATH')
+        if not library_path:
+            return False
+        
+        import sqlite3
+        conn = sqlite3.connect(calibre_db)
+        
+        # 定义title_sort函数（Calibre的触发器需要）
+        def title_sort(title):
+            """Calibre的title_sort函数实现"""
+            if not title:
+                return ''
+            # 移除开头的冠词
+            for prefix in ['The ', 'A ', 'An ', 'the ', 'a ', 'an ']:
+                if title.startswith(prefix):
+                    return title[len(prefix):] + ', ' + prefix.strip()
+            return title
+        
+        # 注册title_sort函数
+        conn.create_function("title_sort", 1, title_sort)
+        
+        cursor = conn.cursor()
+        
+        # 获取书籍路径
+        cursor.execute("SELECT path FROM books WHERE id = ?", (book.calibre_id,))
+        result = cursor.fetchone()
+        if not result:
+            conn.close()
+            return False
+        
+        book_path = result[0]
+        calibre_book_dir = os.path.join(library_path, book_path)
+        
+        if not os.path.exists(calibre_book_dir):
+            conn.close()
+            return False
+        
+        # 复制封面到Calibre目录
+        cover_dest = os.path.join(calibre_book_dir, 'cover.jpg')
+        
+        import shutil
+        shutil.copy2(book.cover_image, cover_dest)
+        
+        # 更新数据库has_cover标记
+        cursor.execute("UPDATE books SET has_cover = 1 WHERE id = ?", (book.calibre_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        app.logger.info(f"成功更新Calibre封面: {book.title} (calibre_id: {book.calibre_id})")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"更新Calibre封面失败: {str(e)}")
+        return False
+
+
 # ==================== Calibre数据库集成 ====================
 
 def get_calibre_db_path():
@@ -837,6 +1051,193 @@ def get_calibre_db_path():
         if os.path.exists(metadata_db):
             return metadata_db
     return None
+
+
+def update_calibre_metadata(book):
+    """更新Calibre数据库中的书籍元数据
+    
+    Args:
+        book: Book对象，包含要更新的信息
+    
+    Returns:
+        bool: 更新是否成功
+    """
+    calibre_db = get_calibre_db_path()
+    if not calibre_db:
+        return False
+    
+    try:
+        import sqlite3
+        conn = sqlite3.connect(calibre_db)
+        
+        # 注册Calibre需要的自定义函数
+        def title_sort(title):
+            """Calibre的title_sort函数实现"""
+            if not title:
+                return ''
+            # 移除开头的冠词
+            for prefix in ['The ', 'A ', 'An ', 'the ', 'a ', 'an ']:
+                if title.startswith(prefix):
+                    return title[len(prefix):] + ', ' + prefix.strip()
+            return title
+        
+        conn.create_function("title_sort", 1, title_sort)
+        
+        cursor = conn.cursor()
+        
+        calibre_book_id = None
+        match_method = None  # 记录匹配方式
+        
+        # 优先使用calibre_id字段查找（最准确的方式）
+        if book.calibre_id:
+            cursor.execute("SELECT id, title FROM books WHERE id = ?", (book.calibre_id,))
+            result = cursor.fetchone()
+            if result:
+                calibre_book_id = result[0]
+                match_method = 'calibre_id'
+                app.logger.info(f"通过calibre_id匹配到书籍: {result[1]} (ID: {calibre_book_id})")
+            else:
+                # calibre_id存在但在Calibre数据库中找不到，可能已被删除
+                app.logger.warning(f"书籍的calibre_id={book.calibre_id}在Calibre数据库中不存在，可能已被删除")
+                book.calibre_id = None  # 清除无效的calibre_id
+                db.session.commit()
+        
+        # 如果没有calibre_id或查找失败，尝试根据书名和作者查找
+        if not calibre_book_id:
+            cursor.execute("""
+                SELECT b.id FROM books b
+                LEFT JOIN books_authors_link bal ON b.id = bal.book
+                LEFT JOIN authors a ON bal.author = a.id
+                WHERE b.title = ? AND (a.name = ? OR (a.name IS NULL AND ? IS NULL))
+                LIMIT 1
+            """, (book.title, book.author, book.author))
+            
+            result = cursor.fetchone()
+            if not result:
+                conn.close()
+                app.logger.warning(f"在Calibre数据库中找不到书籍: {book.title} (作者: {book.author})")
+                app.logger.warning(f"提示: 该书籍可能是在本系统中手动添加的，不存在于Calibre数据库中")
+                return False
+            
+            calibre_book_id = result[0]
+            match_method = 'title_author'
+            app.logger.info(f"通过书名和作者匹配到书籍 (ID: {calibre_book_id})")
+            
+            # 保存calibre_id到本地数据库，以便下次直接使用calibre_id匹配（更快更准确）
+            if not book.calibre_id:
+                book.calibre_id = calibre_book_id
+                db.session.commit()
+                app.logger.info(f"已保存calibre_id={calibre_book_id}到本地数据库，下次将直接使用ID匹配")
+        
+        # 更新书名
+        if book.title:
+            cursor.execute("UPDATE books SET title = ? WHERE id = ?", (book.title, calibre_book_id))
+        
+        # 更新作者
+        if book.author:
+            # 查找或创建作者
+            cursor.execute("SELECT id FROM authors WHERE name = ?", (book.author,))
+            author_row = cursor.fetchone()
+            if author_row:
+                author_id = author_row[0]
+            else:
+                cursor.execute("INSERT INTO authors (name, sort) VALUES (?, ?)", (book.author, book.author))
+                author_id = cursor.lastrowid
+            
+            # 更新books_authors_link
+            cursor.execute("DELETE FROM books_authors_link WHERE book = ?", (calibre_book_id,))
+            cursor.execute("INSERT INTO books_authors_link (book, author) VALUES (?, ?)", (calibre_book_id, author_id))
+        
+        # 更新出版社
+        if book.publisher:
+            cursor.execute("SELECT id FROM publishers WHERE name = ?", (book.publisher,))
+            publisher_row = cursor.fetchone()
+            if publisher_row:
+                publisher_id = publisher_row[0]
+            else:
+                cursor.execute("INSERT INTO publishers (name, sort) VALUES (?, ?)", (book.publisher, book.publisher))
+                publisher_id = cursor.lastrowid
+            
+            cursor.execute("DELETE FROM books_publishers_link WHERE book = ?", (calibre_book_id,))
+            cursor.execute("INSERT INTO books_publishers_link (book, publisher) VALUES (?, ?)", (calibre_book_id, publisher_id))
+        
+        # 更新ISBN
+        if book.isbn:
+            cursor.execute("DELETE FROM identifiers WHERE book = ? AND type = 'isbn'", (calibre_book_id,))
+            cursor.execute("INSERT INTO identifiers (book, type, val) VALUES (?, 'isbn', ?)", (calibre_book_id, book.isbn))
+        
+        # 更新简介（包括清空操作）
+        cursor.execute("DELETE FROM comments WHERE book = ?", (calibre_book_id,))
+        if book.description:
+            cursor.execute("INSERT INTO comments (book, text) VALUES (?, ?)", (calibre_book_id, book.description))
+        
+        # 更新标签（包括清空操作）
+        cursor.execute("DELETE FROM books_tags_link WHERE book = ?", (calibre_book_id,))
+        if book.tags:
+            tags_list = [t.strip() for t in book.tags.split(',') if t.strip()]
+            for tag_name in tags_list:
+                cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
+                tag_row = cursor.fetchone()
+                if tag_row:
+                    tag_id = tag_row[0]
+                else:
+                    cursor.execute("INSERT INTO tags (name) VALUES (?)", (tag_name,))
+                    tag_id = cursor.lastrowid
+                cursor.execute("INSERT INTO books_tags_link (book, tag) VALUES (?, ?)", (calibre_book_id, tag_id))
+        
+        # 更新语言
+        if book.language:
+            cursor.execute("SELECT id FROM languages WHERE lang_code = ?", (book.language.lower(),))
+            lang_row = cursor.fetchone()
+            if lang_row:
+                lang_id = lang_row[0]
+            else:
+                cursor.execute("INSERT INTO languages (lang_code) VALUES (?)", (book.language.lower(),))
+                lang_id = cursor.lastrowid
+            
+            cursor.execute("DELETE FROM books_languages_link WHERE book = ?", (calibre_book_id,))
+            cursor.execute("INSERT INTO books_languages_link (book, lang_code) VALUES (?, ?)", (calibre_book_id, lang_id))
+        
+        # 更新评分
+        if book.rating:
+            calibre_rating = int(book.rating * 2)  # 转换为0-10
+            cursor.execute("SELECT id FROM ratings WHERE rating = ?", (calibre_rating,))
+            rating_row = cursor.fetchone()
+            if rating_row:
+                rating_id = rating_row[0]
+            else:
+                cursor.execute("INSERT INTO ratings (rating) VALUES (?)", (calibre_rating,))
+                rating_id = cursor.lastrowid
+            
+            cursor.execute("DELETE FROM books_ratings_link WHERE book = ?", (calibre_book_id,))
+            cursor.execute("INSERT INTO books_ratings_link (book, rating) VALUES (?, ?)", (calibre_book_id, rating_id))
+        
+        # 更新出版日期
+        if book.publication_date:
+            cursor.execute("UPDATE books SET pubdate = ? WHERE id = ?", 
+                         (book.publication_date.strftime('%Y-%m-%d 00:00:00+00:00'), calibre_book_id))
+        
+        # 更新时间戳
+        from datetime import datetime
+        cursor.execute("UPDATE books SET last_modified = ? WHERE id = ?", 
+                     (datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S+00:00'), calibre_book_id))
+        
+        conn.commit()
+        conn.close()
+        
+        app.logger.info(f"✓ 成功更新Calibre数据库 - 书籍: {book.title}, calibre_id: {calibre_book_id}, 匹配方式: {match_method}")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"✗ 更新Calibre数据库失败 - 书籍: {book.title}, 错误: {str(e)}")
+        import traceback
+        app.logger.error(f"详细错误信息: {traceback.format_exc()}")
+        try:
+            if 'conn' in locals():
+                conn.close()
+        except:
+            pass
+        return False
 
 
 def import_from_calibre(limit=1000, offset=0):
@@ -960,7 +1361,8 @@ def import_from_calibre(limit=1000, offset=0):
                     isbn=isbn,
                     description=description,
                     rating=rating,
-                    tags=','.join(tags) if tags else ''
+                    tags=','.join(tags) if tags else '',
+                    calibre_id=calibre_id  # 保存Calibre书籍ID
                 )
                 
                 # 设置文件路径（相对于Calibre书库）
@@ -1029,6 +1431,11 @@ def import_from_calibre(limit=1000, offset=0):
 def update_book_completeness(book, calibre_id, cursor, path):
     """检查并更新书籍信息的完整性"""
     updated = False
+    
+    # 保存calibre_id
+    if not book.calibre_id:
+        book.calibre_id = calibre_id
+        updated = True
     
     # 检查封面
     if not book.cover_image or not os.path.exists(book.cover_image):
@@ -1512,27 +1919,35 @@ def api_calibre_diff():
         if app.debug:
             print(f"本地数据库共有 {local_total} 本书，开始构建索引...")
         
-        # 构建本地书籍字典（用于快速查找）
-        # 注意：不检查文件实际存在性以提高性能，只检查数据库字段是否有值
+        # 构建本地书籍字典（支持calibre_id和书名+作者两种查找方式）
         local_books = Book.query.all()
-        local_dict = {}
+        local_dict_by_id = {}  # calibre_id -> book_info
+        local_dict_by_key = {}  # (title, author) -> book_info
         local_keys = set()
+        
         for book in local_books:
-            # 统一处理：作者为None时使用空字符串，确保与Calibre的匹配逻辑一致
-            key = (book.title, book.author or '')
-            local_keys.add(key)
-            local_dict[key] = {
+            book_info = {
                 'id': book.id,
                 'title': book.title,
                 'author': book.author or '未知作者',
                 'has_cover': bool(book.cover_image),
                 'has_file': bool(book.file_path),
                 'has_description': bool(book.description),
-                'has_tags': bool(book.tags)
+                'has_tags': bool(book.tags),
+                'calibre_id': book.calibre_id
             }
+            
+            # 如果有calibre_id，建立ID索引
+            if book.calibre_id:
+                local_dict_by_id[book.calibre_id] = book_info
+            
+            # 同时建立书名+作者索引（作为备用匹配方式）
+            key = (book.title, book.author or '')
+            local_keys.add(key)
+            local_dict_by_key[key] = book_info
         
         if app.debug:
-            print("本地索引构建完成，开始查询Calibre书库...")
+            print(f"本地索引构建完成（ID索引: {len(local_dict_by_id)}, 书名索引: {len(local_dict_by_key)}），开始查询Calibre书库...")
         
         # 只查询Calibre中的书籍基本信息用于差异对比
         cursor.execute("""
@@ -1551,14 +1966,27 @@ def api_calibre_diff():
         only_in_local = []
         incomplete_books = []
         calibre_keys = set()
+        matched_calibre_ids = set()  # 记录已匹配的calibre_id
         
-        # 遍历Calibre书籍，只记录差异
+        # 遍历Calibre书籍，优先使用calibre_id匹配
         for calibre_id, title, author, path in cursor.fetchall():
-            # 统一处理：作者为None时使用空字符串，确保与本地的匹配逻辑一致
             key = (title, author or '')
             calibre_keys.add(key)
             
-            if key not in local_dict:
+            local_info = None
+            
+            # 1. 优先使用calibre_id匹配
+            if calibre_id in local_dict_by_id:
+                local_info = local_dict_by_id[calibre_id]
+                matched_calibre_ids.add(calibre_id)
+            # 2. 如果ID匹配失败，尝试书名+作者匹配
+            elif key in local_dict_by_key:
+                local_info = local_dict_by_key[key]
+                # 记录这个calibre_id，避免重复匹配
+                if local_info.get('calibre_id'):
+                    matched_calibre_ids.add(local_info['calibre_id'])
+            
+            if not local_info:
                 # 只在Calibre中存在（待导入）
                 only_in_calibre.append({
                     'calibre_id': calibre_id,
@@ -1568,7 +1996,6 @@ def api_calibre_diff():
                 })
             else:
                 # 检查是否信息不完整
-                local_info = local_dict[key]
                 if not all([local_info['has_cover'], local_info['has_file'], 
                            local_info['has_description'], local_info['has_tags']]):
                     incomplete_books.append({
@@ -1577,13 +2004,15 @@ def api_calibre_diff():
                         'calibre_path': path
                     })
         
-        # 查找只在本地存在的书籍（Calibre中已删除）
+        # 查找只在本地存在的书籍（Calibre中已删除或未关联）
         if app.debug:
             print("检查孤立书籍...")
         
         for key in local_keys:
-            if key not in calibre_keys:
-                only_in_local.append(local_dict[key])
+            book_info = local_dict_by_key[key]
+            # 检查这本书是否已通过ID或书名匹配到Calibre
+            if key not in calibre_keys and book_info.get('calibre_id') not in matched_calibre_ids:
+                only_in_local.append(book_info)
         
         conn.close()
         
@@ -1914,6 +2343,740 @@ def init_db():
                 print("  2. 调用 /api/calibre/import 接口进行全量导入")
             else:
                 print("提示：未找到Calibre数据库文件")
+
+
+# ==================== AI辅助功能 ====================
+
+@app.route('/api/ai/search-book-info', methods=['POST'])
+@login_required
+def api_ai_search_book_info():
+    """使用AI搜索并填充书籍信息"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '')
+        
+        if not query:
+            return jsonify({'error': '请提供搜索关键词'}), 400
+        
+        # 检查配置
+        if not app.config['OLLAMA_BASE_URL']:
+            return jsonify({'error': 'Ollama未配置'}), 500
+        
+        import requests
+        
+        # 1. 如果启用了SearXNG，先搜索网络信息
+        search_results = ''
+        if app.config['SEARXNG_ENABLED'] and app.config['SEARXNG_BASE_URL']:
+            try:
+                searxng_url = f"{app.config['SEARXNG_BASE_URL']}/search"
+                params = {
+                    'q': f"{query} 书籍信息 作者 出版社 ISBN",
+                    'format': 'json',
+                    'categories': 'general',
+                    'language': 'zh-CN'
+                }
+                resp = requests.get(searxng_url, params=params, timeout=10)
+                if resp.status_code == 200:
+                    results = resp.json().get('results', [])[:5]
+                    search_results = '\n\n'.join([
+                        f"标题: {r.get('title', '')}\n内容: {r.get('content', '')}\nURL: {r.get('url', '')}"
+                        for r in results
+                    ])
+                    if app.debug:
+                        print(f"SearXNG搜索结果: {len(results)} 条")
+            except Exception as e:
+                if app.debug:
+                    print(f"SearXNG搜索失败: {e}")
+        
+        # 2. 构建Ollama提示词
+        system_prompt = """你是一个图书信息助手。根据提供的信息，以JSON格式返回书籍的详细信息。
+        
+返回的JSON格式必须严格遵循以下结构：
+{
+    "title": "书名",
+    "author": "作者名",
+    "publisher": "出版社",
+    "isbn": "ISBN号（如果有）",
+    "publication_date": "出版日期（YYYY-MM-DD格式）",
+    "description": "书籍简介（200-500字）",
+    "language": "语言（如：中文、英文）",
+    "tags": "标签1,标签2,标签3（用逗号分隔）"
+}
+
+注意事项：
+1. 所有字段都是可选的，如果不确定就留空字符串
+2. publication_date必须是YYYY-MM-DD格式，如果只知道年份就写YYYY-01-01
+3. description应该包含书籍的主要内容、特色、读者群体等
+4. tags应该包括书籍类型、主题、适用领域等
+5. 只返回JSON，不要有其他文字说明"""
+        
+        user_prompt = f"书籍查询: {query}"
+        if search_results:
+            user_prompt += f"\n\n网络搜索结果:\n{search_results}"
+        
+        # 3. 调用Ollama API
+        ollama_url = f"{app.config['OLLAMA_BASE_URL']}/api/generate"
+        payload = {
+            'model': app.config['OLLAMA_MODEL'],
+            'prompt': f"{system_prompt}\n\n{user_prompt}",
+            'stream': False,
+            'options': {
+                'temperature': 0.7,
+                'top_p': 0.9,
+            }
+        }
+        
+        if app.debug:
+            print(f"调用Ollama: {app.config['OLLAMA_MODEL']}")
+        
+        response = requests.post(
+            ollama_url,
+            json=payload,
+            timeout=app.config['OLLAMA_TIMEOUT']
+        )
+        
+        if response.status_code != 200:
+            return jsonify({'error': f'Ollama API错误: {response.text}'}), 500
+        
+        result = response.json()
+        ai_response = result.get('response', '')
+        
+        if app.debug:
+            print(f"AI响应: {ai_response[:200]}...")
+        
+        # 4. 解析JSON响应
+        try:
+            # 尝试提取JSON（可能被包裹在代码块中）
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', ai_response)
+            if json_match:
+                book_info = json.loads(json_match.group())
+            else:
+                book_info = json.loads(ai_response)
+            
+            # 验证和清理数据
+            cleaned_info = {
+                'title': book_info.get('title', '').strip(),
+                'author': book_info.get('author', '').strip(),
+                'publisher': book_info.get('publisher', '').strip(),
+                'isbn': book_info.get('isbn', '').strip(),
+                'publication_date': book_info.get('publication_date', '').strip(),
+                'description': book_info.get('description', '').strip(),
+                'language': book_info.get('language', '').strip(),
+                'tags': book_info.get('tags', '').strip()
+            }
+            
+            # 尝试搜索封面（如果请求包含book_id）
+            book_id = data.get('book_id')
+            cover_info = None
+            if book_id:
+                book = Book.query.get(book_id)
+                if book and (not book.cover_image or not os.path.exists(book.cover_image)):
+                    # 构建封面搜索查询
+                    cover_query = query
+                    if cleaned_info['title'] and cleaned_info['author']:
+                        cover_query = f"{cleaned_info['title']} {cleaned_info['author']}"
+                    elif cleaned_info['title']:
+                        cover_query = cleaned_info['title']
+                    
+                    success, cover_path, message = search_and_download_cover(book, cover_query)
+                    if success and cover_path:
+                        # 更新封面路径
+                        if book.cover_image and os.path.exists(book.cover_image):
+                            try:
+                                os.remove(book.cover_image)
+                            except:
+                                pass
+                        
+                        book.cover_image = cover_path
+                        db.session.commit()
+                        
+                        # 同步到Calibre
+                        calibre_synced = False
+                        if book.calibre_id:
+                            calibre_synced = update_calibre_cover(book)
+                        
+                        cover_info = {
+                            'success': True,
+                            'cover_url': url_for('uploaded_file', filename=os.path.basename(cover_path)),
+                            'calibre_synced': calibre_synced
+                        }
+                    else:
+                        cover_info = {
+                            'success': False,
+                            'message': message
+                        }
+            
+            response_data = {
+                'success': True,
+                'book_info': cleaned_info,
+                'source': 'ai_with_search' if search_results else 'ai_only'
+            }
+            
+            if cover_info:
+                response_data['cover'] = cover_info
+            
+            return jsonify(response_data), 200
+            
+        except json.JSONDecodeError as e:
+            if app.debug:
+                print(f"JSON解析失败: {e}")
+                print(f"原始响应: {ai_response}")
+            return jsonify({
+                'error': 'AI返回的数据格式错误',
+                'raw_response': ai_response[:500]
+            }), 500
+        
+    except requests.exceptions.Timeout:
+        return jsonify({'error': 'AI请求超时，请稍后重试'}), 504
+    except requests.exceptions.ConnectionError:
+        return jsonify({'error': '无法连接到Ollama服务，请检查配置'}), 503
+    except Exception as e:
+        if app.debug:
+            import traceback
+            traceback.print_exc()
+        return jsonify({'error': f'AI辅助失败: {str(e)}'}), 500
+
+
+@app.route('/api/ai/config', methods=['GET'])
+@admin_required
+def api_ai_config():
+    """获取AI配置状态"""
+    try:
+        import requests
+        
+        # 检查Ollama连接
+        ollama_status = 'disconnected'
+        ollama_models = []
+        if app.config['OLLAMA_BASE_URL']:
+            try:
+                resp = requests.get(
+                    f"{app.config['OLLAMA_BASE_URL']}/api/tags",
+                    timeout=5
+                )
+                if resp.status_code == 200:
+                    ollama_status = 'connected'
+                    ollama_models = [m['name'] for m in resp.json().get('models', [])]
+            except:
+                pass
+        
+        # 检查SearXNG连接
+        searxng_status = 'disabled'
+        if app.config['SEARXNG_ENABLED'] and app.config['SEARXNG_BASE_URL']:
+            try:
+                resp = requests.get(
+                    f"{app.config['SEARXNG_BASE_URL']}/",
+                    timeout=5
+                )
+                if resp.status_code == 200:
+                    searxng_status = 'connected'
+                else:
+                    searxng_status = 'disconnected'
+            except:
+                searxng_status = 'disconnected'
+        
+        return jsonify({
+            'ollama': {
+                'status': ollama_status,
+                'base_url': app.config['OLLAMA_BASE_URL'],
+                'model': app.config['OLLAMA_MODEL'],
+                'available_models': ollama_models
+            },
+            'searxng': {
+                'status': searxng_status,
+                'enabled': app.config['SEARXNG_ENABLED'],
+                'base_url': app.config['SEARXNG_BASE_URL']
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# 批量AI补充任务状态存储
+batch_ai_tasks = {}
+
+# 自动后台补充配置
+auto_fill_config = {
+    'enabled': False,           # 是否启用自动补充
+    'idle_threshold': 300,      # 空闲时间阈值（秒），默认5分钟
+    'batch_size': 10,           # 每批处理数量
+    'interval': 60,             # 检查间隔（秒）
+    'running': False,           # 是否正在运行
+    'paused': False,            # 是否暂停
+    'last_activity': None,      # 最后活动时间
+    'task_id': None             # 当前任务ID
+}
+
+import threading
+import time
+from datetime import datetime, timedelta
+
+def update_last_activity():
+    """更新最后活动时间"""
+    auto_fill_config['last_activity'] = datetime.utcnow()
+
+def is_system_idle():
+    """检测系统是否空闲"""
+    if auto_fill_config['last_activity'] is None:
+        return False
+    
+    idle_time = (datetime.utcnow() - auto_fill_config['last_activity']).total_seconds()
+    return idle_time >= auto_fill_config['idle_threshold']
+
+def auto_fill_background_task():
+    """后台自动补充任务"""
+    while auto_fill_config['enabled']:
+        try:
+            # 等待间隔时间
+            time.sleep(auto_fill_config['interval'])
+            
+            # 检查是否暂停
+            if auto_fill_config['paused']:
+                continue
+            
+            # 检查系统是否空闲
+            if not is_system_idle():
+                # 如果有任务在运行，暂停它
+                if auto_fill_config['task_id']:
+                    task = batch_ai_tasks.get(auto_fill_config['task_id'])
+                    if task and task['status'] == 'running':
+                        task['status'] = 'paused'
+                        app.logger.info("检测到用户活动，暂停自动补充任务")
+                continue
+            
+            # 系统空闲，检查是否有任务在运行
+            if auto_fill_config['task_id']:
+                task = batch_ai_tasks.get(auto_fill_config['task_id'])
+                if task:
+                    if task['status'] == 'paused':
+                        # 恢复暂停的任务
+                        task['status'] = 'running'
+                        app.logger.info("系统空闲，恢复自动补充任务")
+                    elif task['status'] in ['completed', 'failed']:
+                        # 任务已完成，清除任务ID
+                        auto_fill_config['task_id'] = None
+                    else:
+                        # 任务正在运行，继续等待
+                        continue
+            
+            # 没有任务在运行，启动新任务
+            if not auto_fill_config['task_id']:
+                with app.app_context():
+                    # 查询需要补充的书籍
+                    query = Book.query.filter(
+                        db.or_(
+                            Book.author == None,
+                            Book.author == '',
+                            Book.publisher == None,
+                            Book.publisher == '',
+                            Book.description == None,
+                            Book.description == ''
+                        )
+                    )
+                    
+                    from sqlalchemy import func
+                    query = query.order_by(func.random())
+                    books = query.limit(auto_fill_config['batch_size']).all()
+                    
+                    if books:
+                        # 生成任务ID
+                        import uuid
+                        task_id = str(uuid.uuid4())
+                        
+                        # 初始化任务
+                        batch_ai_tasks[task_id] = {
+                            'status': 'running',
+                            'total': len(books),
+                            'processed': 0,
+                            'success_count': 0,
+                            'failed_count': 0,
+                            'current_book': '',
+                            'logs': [],
+                            'book_ids': [b.id for b in books],
+                            'auto': True  # 标记为自动任务
+                        }
+                        
+                        auto_fill_config['task_id'] = task_id
+                        
+                        # 启动处理线程
+                        thread = threading.Thread(target=process_batch_ai_task, args=(task_id,))
+                        thread.daemon = True
+                        thread.start()
+                        
+                        app.logger.info(f"启动自动补充任务: {len(books)}本书")
+                    
+        except Exception as e:
+            app.logger.error(f"自动补充任务异常: {e}")
+            time.sleep(60)  # 发生错误时等待1分钟
+
+@app.route('/api/ai/auto-fill/config', methods=['GET'])
+@admin_required
+def api_get_auto_fill_config():
+    """获取自动补充配置"""
+    return jsonify({
+        'success': True,
+        'config': {
+            'enabled': auto_fill_config['enabled'],
+            'idle_threshold': auto_fill_config['idle_threshold'],
+            'batch_size': auto_fill_config['batch_size'],
+            'interval': auto_fill_config['interval'],
+            'running': auto_fill_config['running'],
+            'paused': auto_fill_config['paused'],
+            'last_activity': auto_fill_config['last_activity'].isoformat() if auto_fill_config['last_activity'] else None
+        }
+    }), 200
+
+@app.route('/api/ai/auto-fill/config', methods=['POST'])
+@admin_required
+def api_update_auto_fill_config():
+    """更新自动补充配置"""
+    try:
+        data = request.get_json()
+        
+        if 'enabled' in data:
+            auto_fill_config['enabled'] = bool(data['enabled'])
+            
+            if auto_fill_config['enabled'] and not auto_fill_config['running']:
+                # 启动后台线程
+                auto_fill_config['running'] = True
+                auto_fill_config['last_activity'] = datetime.utcnow()
+                thread = threading.Thread(target=auto_fill_background_task)
+                thread.daemon = True
+                thread.start()
+                app.logger.info("已启动自动补充后台任务")
+            elif not auto_fill_config['enabled']:
+                auto_fill_config['running'] = False
+                app.logger.info("已停止自动补充后台任务")
+        
+        if 'idle_threshold' in data:
+            auto_fill_config['idle_threshold'] = int(data['idle_threshold'])
+        
+        if 'batch_size' in data:
+            auto_fill_config['batch_size'] = int(data['batch_size'])
+        
+        if 'interval' in data:
+            auto_fill_config['interval'] = int(data['interval'])
+        
+        return jsonify({
+            'success': True,
+            'message': '配置已更新'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/ai/auto-fill/pause', methods=['POST'])
+@admin_required
+def api_pause_auto_fill():
+    """暂停/恢复自动补充"""
+    try:
+        data = request.get_json()
+        paused = bool(data.get('paused', False))
+        auto_fill_config['paused'] = paused
+        
+        return jsonify({
+            'success': True,
+            'message': '已暂停' if paused else '已恢复'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/ai/batch-fill', methods=['POST'])
+@admin_required
+def api_ai_batch_fill():
+    """启动批量AI补充书籍信息任务"""
+    try:
+        data = request.get_json()
+        scope = data.get('scope', 'missing_info')
+        limit = int(data.get('limit', 50))
+        
+        # 查询需要补充的书籍
+        query = Book.query
+        
+        if scope == 'missing_info':
+            # 只查询缺失关键信息的书籍
+            query = query.filter(
+                db.or_(
+                    Book.author == None,
+                    Book.author == '',
+                    Book.publisher == None,
+                    Book.publisher == '',
+                    Book.description == None,
+                    Book.description == ''
+                )
+            )
+        
+        # 随机排序选取书籍
+        from sqlalchemy import func
+        query = query.order_by(func.random())
+        
+        books = query.limit(limit).all()
+        
+        if not books:
+            return jsonify({'success': False, 'error': '没有找到需要补充信息的书籍'}), 400
+        
+        # 生成任务ID
+        import uuid
+        task_id = str(uuid.uuid4())
+        
+        # 初始化任务状态
+        batch_ai_tasks[task_id] = {
+            'status': 'running',
+            'total': len(books),
+            'processed': 0,
+            'success_count': 0,
+            'failed_count': 0,
+            'current_book': '',
+            'logs': [],
+            'book_ids': [b.id for b in books]
+        }
+        
+        # 启动后台线程处理
+        import threading
+        thread = threading.Thread(target=process_batch_ai_task, args=(task_id,))
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'total': len(books)
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"启动批量AI补充任务失败: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def process_batch_ai_task(task_id):
+    """后台处理批量AI补充任务"""
+    import requests
+    
+    task = batch_ai_tasks.get(task_id)
+    if not task:
+        return
+    
+    def add_log(message, log_type='info'):
+        task['logs'].append({'message': message, 'type': log_type})
+    
+    try:
+        book_ids = task['book_ids']
+        
+        for i, book_id in enumerate(book_ids):
+            with app.app_context():
+                book = db.session.get(Book, book_id)
+                if not book:
+                    task['processed'] += 1
+                    task['failed_count'] += 1
+                    add_log(f'书籍ID {book_id} 不存在', 'error')
+                    continue
+                
+                task['current_book'] = book.title or f'ID:{book.id}'
+                add_log(f'正在处理: {task["current_book"]}')
+                
+                try:
+                    # 构建搜索查询（过滤无效值）
+                    invalid_values = ['未知', 'unknown', 'null', 'none', '无', 'n/a', '']
+                    query_parts = []
+                    
+                    if book.title and book.title.strip().lower() not in invalid_values:
+                        query_parts.append(book.title.strip())
+                    if book.author and book.author.strip().lower() not in invalid_values:
+                        query_parts.append(book.author.strip())
+                    if book.isbn and book.isbn.strip().lower() not in invalid_values:
+                        query_parts.append(book.isbn.strip())
+                    
+                    query = ' '.join(query_parts) if query_parts else f'书籍ID{book.id}'
+                    
+                    # 调用AI搜索API
+                    search_results = ''
+                    if app.config['SEARXNG_ENABLED'] and app.config['SEARXNG_BASE_URL']:
+                        try:
+                            resp = requests.get(
+                                f"{app.config['SEARXNG_BASE_URL']}/search",
+                                params={'q': query, 'format': 'json', 'categories': 'general'},
+                                timeout=10
+                            )
+                            if resp.status_code == 200:
+                                results = resp.json().get('results', [])[:3]
+                                search_results = '\n'.join([
+                                    f"{i+1}. {r.get('title', '')}: {r.get('content', '')}"
+                                    for i, r in enumerate(results)
+                                ])
+                        except:
+                            pass
+                    
+                    # 构建Ollama提示
+                    search_section = f'搜索结果:\n{search_results}\n' if search_results else ''
+                    prompt = f"""请根据以下信息，帮我整理这本书的详细信息：
+
+查询关键词：{query}
+
+{search_section}
+
+请返回JSON格式的书籍信息，包含以下字段（如果无法确定某个字段，返回null）：
+- title: 书名
+- author: 作者
+- publisher: 出版社
+- isbn: ISBN号
+- publication_date: 出版日期(YYYY-MM-DD格式)
+- language: 语言
+- tags: 标签（多个用逗号分隔）
+- description: 简介
+
+只返回JSON，不要其他内容。"""
+                    
+                    # 调用Ollama
+                    resp = requests.post(
+                        f"{app.config['OLLAMA_BASE_URL']}/api/generate",
+                        json={
+                            'model': app.config['OLLAMA_MODEL'],
+                            'prompt': prompt,
+                            'stream': False,
+                            'format': 'json'
+                        },
+                        timeout=app.config['OLLAMA_TIMEOUT']
+                    )
+                    
+                    if resp.status_code == 200:
+                        result = resp.json()
+                        response_text = result.get('response', '{}')
+                        
+                        import json
+                        book_info = json.loads(response_text)
+                        
+                        # 定义无效值列表
+                        invalid_values = ['未知', 'unknown', 'null', 'none', '无', 'n/a', '']
+                        
+                        # 辅助函数：判断字段是否为有效值（不为空且不是无效值）
+                        def is_valid(value):
+                            if not value:
+                                return False
+                            if isinstance(value, str) and value.strip().lower() in invalid_values:
+                                return False
+                            return True
+                        
+                        # 更新书籍信息（只更新空缺或无效的字段）
+                        updated = False
+                        if book_info.get('title') and is_valid(book_info.get('title')) and not is_valid(book.title):
+                            book.title = book_info['title']
+                            updated = True
+                        if book_info.get('author') and is_valid(book_info.get('author')) and not is_valid(book.author):
+                            book.author = book_info['author']
+                            updated = True
+                        if book_info.get('publisher') and is_valid(book_info.get('publisher')) and not is_valid(book.publisher):
+                            book.publisher = book_info['publisher']
+                            updated = True
+                        if book_info.get('isbn') and is_valid(book_info.get('isbn')) and not is_valid(book.isbn):
+                            book.isbn = book_info['isbn']
+                            updated = True
+                        if book_info.get('publication_date') and not book.publication_date:
+                            from datetime import datetime
+                            try:
+                                book.publication_date = datetime.strptime(book_info['publication_date'], '%Y-%m-%d').date()
+                                updated = True
+                            except:
+                                pass
+                        if book_info.get('language') and is_valid(book_info.get('language')) and not is_valid(book.language):
+                            book.language = book_info['language']
+                            updated = True
+                        if book_info.get('tags') and is_valid(book_info.get('tags')) and not is_valid(book.tags):
+                            book.tags = book_info['tags']
+                            updated = True
+                        if book_info.get('description') and is_valid(book_info.get('description')) and not is_valid(book.description):
+                            book.description = book_info['description']
+                            updated = True
+                        
+                        if updated:
+                            db.session.commit()
+                            
+                            # 同步更新到Calibre数据库
+                            calibre_updated = update_calibre_metadata(book)
+                            if calibre_updated:
+                                task['success_count'] += 1
+                                add_log(f'✓ {task["current_book"]} - 成功更新（已同步到Calibre）', 'success')
+                            else:
+                                task['success_count'] += 1
+                                add_log(f'✓ {task["current_book"]} - 成功更新（Calibre同步失败或未配置）', 'warning')
+                        else:
+                            add_log(f'○ {task["current_book"]} - 无需更新', 'info')
+                        
+                        # 检查并补充封面
+                        if not book.cover_image or not os.path.exists(book.cover_image):
+                            add_log(f'🖼️ 正在搜索封面: {task["current_book"]}', 'info')
+                            success, cover_path, message = search_and_download_cover(book, query)
+                            
+                            if success and cover_path:
+                                # 删除旧封面（如果存在）
+                                if book.cover_image and os.path.exists(book.cover_image):
+                                    try:
+                                        os.remove(book.cover_image)
+                                    except:
+                                        pass
+                                
+                                # 更新封面路径
+                                book.cover_image = cover_path
+                                db.session.commit()
+                                
+                                # 同步到Calibre
+                                if book.calibre_id:
+                                    cover_synced = update_calibre_cover(book)
+                                    if cover_synced:
+                                        add_log(f'✓ {task["current_book"]} - 封面已更新并同步到Calibre', 'success')
+                                    else:
+                                        add_log(f'✓ {task["current_book"]} - 封面已更新（Calibre同步失败）', 'warning')
+                                else:
+                                    add_log(f'✓ {task["current_book"]} - 封面已更新', 'success')
+                            else:
+                                add_log(f'○ {task["current_book"]} - 封面搜索失败: {message}', 'info')
+                        
+                    else:
+                        task['failed_count'] += 1
+                        add_log(f'✗ {task["current_book"]} - AI调用失败', 'error')
+                
+                except Exception as e:
+                    task['failed_count'] += 1
+                    add_log(f'✗ {task["current_book"]} - 处理失败: {str(e)}', 'error')
+                
+                task['processed'] += 1
+                
+                # 小延迟避免API限流
+                import time
+                time.sleep(0.5)
+        
+        task['status'] = 'completed'
+        add_log('批量任务完成', 'success')
+        
+    except Exception as e:
+        task['status'] = 'failed'
+        add_log(f'任务异常终止: {str(e)}', 'error')
+
+
+@app.route('/api/ai/batch-progress/<task_id>', methods=['GET'])
+@admin_required
+def api_ai_batch_progress(task_id):
+    """获取批量AI补充任务进度"""
+    task = batch_ai_tasks.get(task_id)
+    
+    if not task:
+        return jsonify({'success': False, 'error': '任务不存在'}), 404
+    
+    # 获取新日志
+    logs = task['logs']
+    task['logs'] = []  # 清空已读日志
+    
+    return jsonify({
+        'success': True,
+        'status': task['status'],
+        'total': task['total'],
+        'processed': task['processed'],
+        'success_count': task['success_count'],
+        'failed_count': task['failed_count'],
+        'current_book': task['current_book'],
+        'logs': logs
+    }), 200
 
 
 if __name__ == '__main__':

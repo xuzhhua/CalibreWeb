@@ -26,6 +26,12 @@
 - ✅ **后台任务**：异步导入，不阻塞界面
 - ✅ **进度跟踪**：实时查看导入进度
 
+### AI辅助功能（新）
+- ✅ **智能填充**：AI自动填写书籍信息
+- ✅ **网络搜索**：通过SearXNG获取准确数据
+- ✅ **本地运行**：基于Ollama，数据不外传
+- ✅ **多模型支持**：支持qwen、llama、mistral等模型
+
 ## 🚀 快速开始
 
 ### 1. 安装依赖
@@ -47,7 +53,19 @@ CALIBRE_LIBRARY_PATH=E:\MyCalibre
 USE_CALIBRE_DB=True
 
 # Flask密钥（生产环境请修改）
-SECRET_KEY=your-secret-key-here
+
+# AI辅助功能配置（可选）
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:latest
+OLLAMA_TIMEOUT=60
+SEARXNG_BASE_URL=http://localhost:8080
+SEARXNG_ENABLED=True
+```
+
+**AI功能说明：**
+- 需要先安装 [Ollama](https://ollama.ai) 和模型
+- SearXNG 可选，但能显著提高信息准确度
+- 详细配置请查看 [AI_ASSISTANT_GUIDE.md](AI_ASSISTANT_GUIDE.md)RET_KEY=your-secret-key-here
 
 # 服务器配置
 PORT=18080
@@ -233,6 +251,7 @@ CalibreWeb/
 ├── requirements.txt                # Python依赖
 ├── .env                           # 环境配置
 ├── README.md                       # 本文档（完整指南）
+├── AI_ASSISTANT_GUIDE.md          # AI辅助功能配置指南
 ├── calibre_web.db                 # SQLite数据库（自动创建）
 ├── migrate_users.py                # 用户数据库迁移脚本
 ├── diagnose_book_db.py             # 书籍数据库诊断工具
@@ -476,7 +495,14 @@ python migrate_users.py
 
 ### 性能优化
 1. **关闭DEBUG**：生产环境设置 `DEBUG=False`
-2. **定期清理**：删除孤立书籍和无效数据
+2. **定期1 (2026-01-31)
+- ✅ 添加AI辅助填写书籍信息功能
+- ✅ 集成Ollama本地大语言模型
+- ✅ 集成SearXNG网络搜索
+- ✅ 支持智能书籍信息提取和填充
+- ✅ 完整的AI配置和管理界面
+
+### v2.清理**：删除孤立书籍和无效数据
 3. **索引优化**：大型数据库考虑添加索引
 4. **静态文件**：使用CDN或Nginx托管静态资源
 
@@ -501,7 +527,8 @@ python migrate_users.py
 ### v1.0 (2026-01-30)
 - ✅ 基础图书管理功能
 - ✅ 用户认证和权限系统
-- ✅ Calibre集成
+- ✅x] AI辅助填写书籍信息（v2.1已完成）
+- [ Calibre集成
 - ✅ 智能增量导入
 - ✅ 主题切换
 - ✅ 响应式设计
