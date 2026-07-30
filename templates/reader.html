@@ -8,72 +8,38 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
     <style>
-        /* 主题颜色变量 - 默认经典主题 */
+        /* Light 主题 - 冷灰白极简 */
         :root {
-            --bg-primary: linear-gradient(135deg, #faf7f2 0%, #f5f0e8 100%);
-            --bg-secondary: linear-gradient(135deg, #f5efe4 0%, #ebe5d9 100%);
-            --text-primary: #4a4033;
-            --text-secondary: #6b5d4f;
-            --border-color: rgba(139, 90, 43, 0.15);
-            --shadow: rgba(139, 90, 43, 0.08);
-            --header-bg: linear-gradient(135deg, #f5efe4 0%, #ebe5d9 100%);
-            --header-border: rgba(139, 90, 43, 0.15);
-            --btn-bg: rgba(139, 90, 43, 0.08);
-            --btn-hover-bg: rgba(139, 90, 43, 0.15);
-            --btn-border: rgba(139, 90, 43, 0.2);
-            --controls-bg: rgba(245, 239, 228, 0.98);
-            --controls-border: rgba(139, 90, 43, 0.2);
+            --bg-primary: linear-gradient(135deg, #f4f4f6 0%, #ececf0 100%);
+            --bg-secondary: linear-gradient(135deg, #ececf0 0%, #e4e4e8 100%);
+            --text-primary: #1a1a2e;
+            --text-secondary: #6e6e80;
+            --border-color: rgba(100, 100, 120, 0.15);
+            --shadow: rgba(100, 100, 120, 0.10);
+            --header-bg: linear-gradient(135deg, #f0f0f3 0%, #e8e8ec 100%);
+            --header-border: rgba(100, 100, 120, 0.15);
+            --btn-bg: rgba(100, 100, 120, 0.08);
+            --btn-hover-bg: rgba(100, 100, 120, 0.15);
+            --btn-border: rgba(100, 100, 120, 0.2);
+            --controls-bg: rgba(240, 240, 243, 0.98);
+            --controls-border: rgba(100, 100, 120, 0.2);
         }
 
-        /* 现代简约主题 */
-        body[data-theme="modern"] {
-            --bg-primary: linear-gradient(135deg, #f9f7fc 0%, #f3f0f8 100%);
-            --bg-secondary: linear-gradient(135deg, #f3f0f8 0%, #ede9f4 100%);
-            --text-primary: #4a3d5a;
-            --text-secondary: #6b5d7f;
-            --border-color: rgba(147, 112, 219, 0.15);
-            --shadow: rgba(147, 112, 219, 0.08);
-            --header-bg: linear-gradient(135deg, #f3f0f8 0%, #ede9f4 100%);
-            --header-border: rgba(147, 112, 219, 0.15);
-            --btn-bg: rgba(147, 112, 219, 0.08);
-            --btn-hover-bg: rgba(147, 112, 219, 0.15);
-            --btn-border: rgba(147, 112, 219, 0.2);
-            --controls-bg: rgba(243, 240, 248, 0.98);
-            --controls-border: rgba(147, 112, 219, 0.2);
-        }
-
-        /* 深色主题 */
+        /* Dark 主题 - 中灰蓝护眼 (Catppuccin Mocha 风格) */
         body[data-theme="dark"] {
-            --bg-primary: linear-gradient(135deg, #2d2d3a 0%, #25252f 100%);
-            --bg-secondary: linear-gradient(135deg, #35354a 0%, #2d2d40 100%);
-            --text-primary: #e8e8f0;
-            --text-secondary: #b8b8cc;
-            --border-color: rgba(139, 139, 179, 0.15);
-            --shadow: rgba(0, 0, 0, 0.3);
-            --header-bg: linear-gradient(135deg, #35354a 0%, #2d2d40 100%);
-            --header-border: rgba(139, 139, 179, 0.15);
-            --btn-bg: rgba(139, 139, 179, 0.15);
-            --btn-hover-bg: rgba(139, 139, 179, 0.25);
-            --btn-border: rgba(139, 139, 179, 0.3);
-            --controls-bg: rgba(53, 53, 74, 0.98);
-            --controls-border: rgba(139, 139, 179, 0.3);
-        }
-
-        /* 海洋主题 */
-        body[data-theme="ocean"] {
-            --bg-primary: linear-gradient(135deg, #f0f8fc 0%, #e8f4f8 100%);
-            --bg-secondary: linear-gradient(135deg, #e8f4f8 0%, #dff0f5 100%);
-            --text-primary: #2d4a5a;
-            --text-secondary: #4a6b7f;
-            --border-color: rgba(70, 130, 180, 0.15);
-            --shadow: rgba(70, 130, 180, 0.08);
-            --header-bg: linear-gradient(135deg, #e8f4f8 0%, #dff0f5 100%);
-            --header-border: rgba(70, 130, 180, 0.15);
-            --btn-bg: rgba(70, 130, 180, 0.08);
-            --btn-hover-bg: rgba(70, 130, 180, 0.15);
-            --btn-border: rgba(70, 130, 180, 0.2);
-            --controls-bg: rgba(232, 244, 248, 0.98);
-            --controls-border: rgba(70, 130, 180, 0.2);
+            --bg-primary: linear-gradient(135deg, #1e1e2e 0%, #181825 100%);
+            --bg-secondary: linear-gradient(135deg, #252535 0%, #1e1e2e 100%);
+            --text-primary: #cdd6f4;
+            --text-secondary: #a6adc8;
+            --border-color: rgba(166, 173, 200, 0.15);
+            --shadow: rgba(0, 0, 0, 0.35);
+            --header-bg: linear-gradient(135deg, #2a2a3e 0%, #252535 100%);
+            --header-border: rgba(166, 173, 200, 0.15);
+            --btn-bg: rgba(166, 173, 200, 0.10);
+            --btn-hover-bg: rgba(166, 173, 200, 0.20);
+            --btn-border: rgba(166, 173, 200, 0.25);
+            --controls-bg: rgba(42, 42, 62, 0.98);
+            --controls-border: rgba(166, 173, 200, 0.25);
         }
 
         * {
@@ -352,10 +318,10 @@
     <script>
         // 加载保存的主题
         function loadTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'classic';
-            if (savedTheme !== 'classic') {
-                document.body.setAttribute('data-theme', savedTheme);
-            }
+            const saved = localStorage.getItem('theme') || 'light';
+            // 将旧主题名映射到新主题
+            const theme = (saved === 'dark') ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', theme);
         }
         loadTheme();
     </script>

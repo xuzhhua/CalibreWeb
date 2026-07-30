@@ -13,23 +13,23 @@
         }
 
         :root {
-            /* 淡雅米白主题 - 默认 */
-            --primary-bg: #faf8f5;
-            --primary-gradient: linear-gradient(180deg, #ffffff 0%, #faf8f5 100%);
-            --navbar-bg: linear-gradient(135deg, #f5f1ea 0%, #e8e3da 100%);
-            --navbar-border: #d4cec3;
-            --text-primary: #5a5550;
-            --text-secondary: #8b8378;
-            --card-bg: linear-gradient(135deg, #ffffff 0%, #f9f7f4 100%);
-            --card-border: #e8e3da;
-            --book-shelf: linear-gradient(180deg, #fdfcfb 0%, #f5f3f0 100%);
-            --book-cover: linear-gradient(135deg, #e8dfd0 0%, #d4c4ae 100%);
-            --book-info-bg: linear-gradient(180deg, #ffffff 0%, #f9f7f4 100%);
-            --book-title-color: #3d3935;
-            --book-author-color: #7a7268;
-            --shadow-light: rgba(0, 0, 0, 0.08);
-            --shadow-medium: rgba(0, 0, 0, 0.12);
-            /* 按钮颜色 - 极浅柔和版 */
+            /* Light 主题 - 冷灰白极简 */
+            --primary-bg: #f4f4f6;
+            --primary-gradient: linear-gradient(180deg, #ffffff 0%, #f4f4f6 100%);
+            --navbar-bg: linear-gradient(135deg, #f0f0f3 0%, #e8e8ec 100%);
+            --navbar-border: #d1d1d8;
+            --text-primary: #1a1a2e;
+            --text-secondary: #6e6e80;
+            --card-bg: linear-gradient(135deg, #ffffff 0%, #f8f8fa 100%);
+            --card-border: #e2e2e8;
+            --book-shelf: linear-gradient(180deg, #fafafa 0%, #f2f2f5 100%);
+            --book-cover: linear-gradient(135deg, #d0d0d8 0%, #b8b8c4 100%);
+            --book-info-bg: linear-gradient(180deg, #ffffff 0%, #f8f8fa 100%);
+            --book-title-color: #1a1a2e;
+            --book-author-color: #6e6e80;
+            --shadow-light: rgba(100, 100, 120, 0.08);
+            --shadow-medium: rgba(100, 100, 120, 0.14);
+            /* 按钮颜色 */
             --btn-edit-bg: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
             --btn-edit-color: #059669;
             --btn-edit-border: #a7f3d0;
@@ -57,147 +57,83 @@
             --btn-read-active-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
             --btn-read-active-border: #6ee7b7;
             --btn-read-active-color: #059669;
-        }
-
-        body[data-theme="modern"] {
-            /* 薰衣草紫主题 */
-            --primary-bg: #f8f7fc;
-            --primary-gradient: linear-gradient(180deg, #fdfcff 0%, #f8f7fc 100%);
-            --navbar-bg: linear-gradient(135deg, #e9e5f5 0%, #dcd7ed 100%);
-            --navbar-border: #c9c0e0;
-            --text-primary: #4a4258;
-            --text-secondary: #7b7089;
-            --card-bg: linear-gradient(135deg, #f5f2ff 0%, #ede9f9 100%);
-            --card-border: #dcd7ed;
-            --book-shelf: linear-gradient(180deg, #faf8fe 0%, #f3f1f9 100%);
-            --book-cover: linear-gradient(135deg, #d8cff0 0%, #bfb3dd 100%);
-            --book-info-bg: linear-gradient(180deg, #ffffff 0%, #f8f6fc 100%);
-            --book-title-color: #3d3748;
-            --book-author-color: #6e6579;
-            --shadow-light: rgba(123, 97, 255, 0.08);
-            --shadow-medium: rgba(123, 97, 255, 0.12);
-            /* 按钮颜色 - 极浅柔和版 */
-            --btn-edit-bg: linear-gradient(135deg, #f7fee7 0%, #ecfccb 100%);
-            --btn-edit-color: #65a30d;
-            --btn-edit-border: #d9f99d;
-            --btn-delete-bg: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
-            --btn-delete-color: #be123c;
-            --btn-delete-border: #fecdd3;
-            --btn-preview-bg: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-            --btn-preview-color: #4f46e5;
-            --btn-preview-border: #c7d2fe;
-            --btn-download-bg: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
-            --btn-download-color: #ca8a04;
-            --btn-download-border: #fef08a;
-            /* 状态按钮颜色 */
-            --btn-favorite-color: #ec4899;
-            --btn-favorite-border: #fce7f3;
-            --btn-favorite-hover-bg: #fdf2f8;
-            --btn-favorite-hover-border: #fbcfe8;
-            --btn-favorite-active-bg: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
-            --btn-favorite-active-border: #f9a8d4;
-            --btn-favorite-active-color: #db2777;
-            --btn-read-color: #10b981;
-            --btn-read-border: #d1fae5;
-            --btn-read-hover-bg: #f0fdf4;
-            --btn-read-hover-border: #a7f3d0;
-            --btn-read-active-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-            --btn-read-active-border: #6ee7b7;
-            --btn-read-active-color: #059669;
+            /* 弹窗/表单颜色 */
+            --secondary-bg: #f0f0f3;
+            --input-bg: #ffffff;
+            --input-border: #d1d1d8;
+            --input-focus-border: #4f6af6;
+            --modal-bg: #ffffff;
+            /* 取消/次要操作按钮 */
+            --btn-secondary-bg: #6c757d;
+            --btn-secondary-hover-bg: #5a6268;
+            --btn-secondary-color: #ffffff;
+            /* 弹窗详细操作按钮 */
+            --btn-action-primary-bg: #2196F3;
+            --btn-action-primary-color: #ffffff;
+            --btn-action-secondary-bg: #FF9800;
+            --btn-action-secondary-color: #ffffff;
         }
 
         body[data-theme="dark"] {
-            /* 现代深色主题 */
-            --primary-bg: #1a1b1e;
-            --primary-gradient: linear-gradient(180deg, #25262b 0%, #1a1b1e 100%);
-            --navbar-bg: linear-gradient(135deg, #2c2e33 0%, #25262b 100%);
-            --navbar-border: #373a40;
-            --text-primary: #e9ecef;
-            --text-secondary: #adb5bd;
-            --card-bg: linear-gradient(135deg, #2c2e33 0%, #25262b 100%);
-            --card-border: #373a40;
-            --book-shelf: linear-gradient(180deg, #25262b 0%, #1f2023 100%);
-            --book-cover: linear-gradient(135deg, #495057 0%, #373a40 100%);
-            --book-info-bg: linear-gradient(180deg, #2c2e33 0%, #25262b 100%);
-            --book-title-color: #f1f3f5;
-            --book-author-color: #adb5bd;
-            --shadow-light: rgba(0, 0, 0, 0.3);
-            --shadow-medium: rgba(0, 0, 0, 0.4);
-            /* 按钮颜色 - 极浅柔和版 */
-            --btn-edit-bg: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-            --btn-edit-color: #d1fae5;
-            --btn-edit-border: #6ee7b7;
-            --btn-delete-bg: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
-            --btn-delete-color: #fee2e2;
-            --btn-delete-border: #fca5a5;
-            --btn-preview-bg: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-            --btn-preview-color: #dbeafe;
-            --btn-preview-border: #93c5fd;
-            --btn-download-bg: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-            --btn-download-color: #fef3c7;
-            --btn-download-border: #fcd34d;
+            /* Dark 主题 - 中灰蓝护眼（Catppuccin Mocha 风格）*/
+            --primary-bg: #1e1e2e;
+            --primary-gradient: linear-gradient(180deg, #252535 0%, #1e1e2e 100%);
+            --navbar-bg: linear-gradient(135deg, #2a2a3e 0%, #252535 100%);
+            --navbar-border: #3a3a50;
+            --text-primary: #cdd6f4;
+            --text-secondary: #a6adc8;
+            --card-bg: linear-gradient(135deg, #2a2a3e 0%, #252535 100%);
+            --card-border: #3a3a50;
+            --book-shelf: linear-gradient(180deg, #252535 0%, #1e1e2e 100%);
+            --book-cover: linear-gradient(135deg, #45475a 0%, #363650 100%);
+            --book-info-bg: linear-gradient(180deg, #2a2a3e 0%, #252535 100%);
+            --book-title-color: #cdd6f4;
+            --book-author-color: #a6adc8;
+            --shadow-light: rgba(0, 0, 0, 0.30);
+            --shadow-medium: rgba(0, 0, 0, 0.45);
+            /* 按钮颜色 - 暗底亮色文字 */
+            --btn-edit-bg: linear-gradient(135deg, #1e3a2f 0%, #1a3328 100%);
+            --btn-edit-color: #a6e3a1;
+            --btn-edit-border: #2d5a45;
+            --btn-delete-bg: linear-gradient(135deg, #3a1e1e 0%, #331a1a 100%);
+            --btn-delete-color: #f38ba8;
+            --btn-delete-border: #5a2d2d;
+            --btn-preview-bg: linear-gradient(135deg, #1e2a3a 0%, #1a2533 100%);
+            --btn-preview-color: #89b4fa;
+            --btn-preview-border: #2d455a;
+            --btn-download-bg: linear-gradient(135deg, #3a2e1e 0%, #33281a 100%);
+            --btn-download-color: #fab387;
+            --btn-download-border: #5a482d;
             /* 状态按钮颜色 */
-            --btn-favorite-color: #f9a8d4;
-            --btn-favorite-border: #9f1239;
-            --btn-favorite-hover-bg: #831843;
-            --btn-favorite-hover-border: #be185d;
-            --btn-favorite-active-bg: linear-gradient(135deg, #db2777 0%, #be185d 100%);
-            --btn-favorite-active-border: #ec4899;
-            --btn-favorite-active-color: #fce7f3;
-            --btn-read-color: #a7f3d0;
-            --btn-read-border: #047857;
-            --btn-read-hover-bg: #065f46;
-            --btn-read-hover-border: #059669;
-            --btn-read-active-bg: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            --btn-read-active-border: #34d399;
-            --btn-read-active-color: #d1fae5;
-        }
-
-        body[data-theme="ocean"] {
-            /* 天空蓝主题 */
-            --primary-bg: #f7fafb;
-            --primary-gradient: linear-gradient(180deg, #fcfeff 0%, #f7fafb 100%);
-            --navbar-bg: linear-gradient(135deg, #e3f2f7 0%, #d4e9f0 100%);
-            --navbar-border: #b8d8e3;
-            --text-primary: #2d5566;
-            --text-secondary: #5b7f8f;
-            --card-bg: linear-gradient(135deg, #f0f9fc 0%, #e3f2f7 100%);
-            --card-border: #cfe5ed;
-            --book-shelf: linear-gradient(180deg, #f9fcfd 0%, #f2f8fa 100%);
-            --book-cover: linear-gradient(135deg, #c5e3ef 0%, #a8d5e2 100%);
-            --book-info-bg: linear-gradient(180deg, #ffffff 0%, #f5fbfc 100%);
-            --book-title-color: #2d4f5c;
-            --book-author-color: #5b7f8f;
-            --shadow-light: rgba(45, 85, 102, 0.08);
-            --shadow-medium: rgba(45, 85, 102, 0.12);
-            /* 按钮颜色 - 极浅柔和版 */
-            --btn-edit-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-            --btn-edit-color: #047857;
-            --btn-edit-border: #6ee7b7;
-            --btn-delete-bg: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-            --btn-delete-color: #b91c1c;
-            --btn-delete-border: #fca5a5;
-            --btn-preview-bg: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-            --btn-preview-color: #075985;
-            --btn-preview-border: #7dd3fc;
-            --btn-download-bg: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
-            --btn-download-color: #9a3412;
-            --btn-download-border: #fdba74;
-            /* 状态按钮颜色 */
-            --btn-favorite-color: #f43f5e;
-            --btn-favorite-border: #ffe4e6;
-            --btn-favorite-hover-bg: #fff1f2;
-            --btn-favorite-hover-border: #fecdd3;
-            --btn-favorite-active-bg: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
-            --btn-favorite-active-border: #fda4af;
-            --btn-favorite-active-color: #e11d48;
-            --btn-read-color: #10b981;
-            --btn-read-border: #d1fae5;
-            --btn-read-hover-bg: #ecfdf5;
-            --btn-read-hover-border: #a7f3d0;
-            --btn-read-active-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-            --btn-read-active-border: #6ee7b7;
-            --btn-read-active-color: #059669;
+            --btn-favorite-color: #f5c2e7;
+            --btn-favorite-border: #4a2a3a;
+            --btn-favorite-hover-bg: #3a2035;
+            --btn-favorite-hover-border: #5a3050;
+            --btn-favorite-active-bg: linear-gradient(135deg, #4a1a3a 0%, #3e1532 100%);
+            --btn-favorite-active-border: #7a3060;
+            --btn-favorite-active-color: #f5c2e7;
+            --btn-read-color: #a6e3a1;
+            --btn-read-border: #1e3a2f;
+            --btn-read-hover-bg: #1a3328;
+            --btn-read-hover-border: #2d5a45;
+            --btn-read-active-bg: linear-gradient(135deg, #1e3a2f 0%, #1a3328 100%);
+            --btn-read-active-border: #3d7a5a;
+            --btn-read-active-color: #a6e3a1;
+            /* 弹窗/表单颜色 */
+            --secondary-bg: #252535;
+            --input-bg: #2a2a3e;
+            --input-border: #3a3a50;
+            --input-focus-border: #89b4fa;
+            --modal-bg: #252535;
+            /* 取消/次要操作按钮 */
+            --btn-secondary-bg: #45475a;
+            --btn-secondary-hover-bg: #585b70;
+            --btn-secondary-color: #cdd6f4;
+            /* 弹窗详细操作按钮 */
+            --btn-action-primary-bg: #1e3050;
+            --btn-action-primary-color: #89b4fa;
+            --btn-action-secondary-bg: #3d2e10;
+            --btn-action-secondary-color: #fab387;
         }
 
         body {
@@ -322,52 +258,32 @@
             align-items: center;
         }
 
-        .theme-btn {
-            width: 30px;
-            height: 30px;
+        .theme-toggle-btn {
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.4);
             cursor: pointer;
             transition: all 0.3s;
-            position: relative;
+            background: rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            line-height: 1;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(4px);
+            padding: 0;
         }
 
-        .theme-btn:hover {
+        .theme-toggle-btn:hover {
             transform: scale(1.1);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.25);
         }
 
-        .theme-btn.active {
-            border-color: rgba(255, 255, 255, 0.9);
-            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
-        }
-
-        .theme-btn.active::after {
-            content: '✓';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-weight: bold;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-        }
-
-        .theme-btn[data-theme="classic"] {
-            background: linear-gradient(135deg, #e8dfd0 0%, #d4c4ae 100%);
-        }
-
-        .theme-btn[data-theme="modern"] {
-            background: linear-gradient(135deg, #d8cff0 0%, #bfb3dd 100%);
-        }
-
-        .theme-btn[data-theme="dark"] {
-            background: linear-gradient(135deg, #495057 0%, #373a40 100%);
-        }
-
-        .theme-btn[data-theme="ocean"] {
-            background: linear-gradient(135deg, #c5e3ef 0%, #a8d5e2 100%);
+        .theme-toggle-btn:active {
+            transform: scale(0.95);
         }
 
         /* 搜索和操作栏 */
@@ -669,13 +585,30 @@
         }
 
         .modal-content {
-            background: white;
+            background: var(--modal-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
             padding: 30px;
             border-radius: 20px;
             width: 90%;
             max-width: 700px;
             max-height: 90vh;
             overflow-y: auto;
+        }
+
+        .modal-content input[type="number"],
+        .modal-content input[type="text"],
+        .modal-content input[type="email"],
+        .modal-content input[type="password"],
+        .modal-content select,
+        .modal-content textarea {
+            background: var(--input-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--input-border);
+        }
+
+        .modal-content small {
+            color: var(--text-secondary);
         }
 
         .book-detail-view {
@@ -710,17 +643,17 @@
 
         .book-detail-info h2 {
             margin-bottom: 15px;
-            color: #2c1810;
+            color: var(--text-primary);
         }
 
         .book-detail-info .info-row {
             margin-bottom: 10px;
-            color: #666;
+            color: var(--text-secondary);
         }
 
         .book-detail-info .info-label {
             font-weight: 600;
-            color: #8b5a2b;
+            color: var(--text-secondary);
             display: inline-block;
             width: 80px;
         }
@@ -743,14 +676,14 @@
         }
 
         .book-detail-actions .btn-primary-action {
-            background: #2196F3;
-            color: white;
+            background: var(--btn-action-primary-bg);
+            color: var(--btn-action-primary-color);
             border: none;
         }
 
         .book-detail-actions .btn-secondary-action {
-            background: #FF9800;
-            color: white;
+            background: var(--btn-action-secondary-bg);
+            color: var(--btn-action-secondary-color);
             border: none;
         }
 
@@ -767,7 +700,7 @@
         }
 
         .modal-header h2 {
-            color: #333;
+            color: var(--text-primary);
         }
 
         .btn-close {
@@ -775,11 +708,11 @@
             border: none;
             font-size: 24px;
             cursor: pointer;
-            color: #999;
+            color: var(--text-secondary);
         }
 
         .btn-ai {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #5a68d0 0%, #6a40a0 100%);
             color: white;
             border: none;
             padding: 8px 16px;
@@ -809,8 +742,8 @@
         }
         
         .btn-secondary {
-            background: #6c757d;
-            color: white;
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-color);
             border: none;
             padding: 10px 20px;
             border-radius: 6px;
@@ -820,7 +753,7 @@
         }
         
         .btn-secondary:hover {
-            background: #5a6268;
+            background: var(--btn-secondary-hover-bg);
         }
 
         .form-group {
@@ -1155,9 +1088,10 @@
                 gap: 6px;
             }
 
-            .theme-btn {
-                width: 28px;
-                height: 28px;
+            .theme-toggle-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
             }
 
             .btn-logout {
@@ -1346,9 +1280,9 @@
                 border-top: 1px solid var(--navbar-border);
             }
 
-            .theme-btn {
-                width: 32px;
-                height: 32px;
+            .theme-toggle-btn {
+                width: 36px;
+                height: 36px;
             }
 
             .btn-logout {
@@ -1592,7 +1526,7 @@
             .btn-small,
             .btn-status,
             .page-btn,
-            .theme-btn {
+            .theme-toggle-btn {
                 min-width: 44px;
                 min-height: 44px;
             }
@@ -1645,10 +1579,7 @@
                 </div>
             </div>
             <div class="theme-switcher">
-                <button class="theme-btn active" data-theme="classic" onclick="switchTheme('classic')" title="木质书架"></button>
-                <button class="theme-btn" data-theme="modern" onclick="switchTheme('modern')" title="现代简约"></button>
-                <button class="theme-btn" data-theme="dark" onclick="switchTheme('dark')" title="深色主题"></button>
-                <button class="theme-btn" data-theme="ocean" onclick="switchTheme('ocean')" title="海洋主题"></button>
+                <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="切换主题"><span id="themeIcon">🌙</span></button>
             </div>
             <button class="btn-primary" id="calibreDiffBtn" onclick="openCalibreDiff()" style="display: none; padding: 8px 15px; font-size: 13px;">📊 书库差异分析</button>
             <button class="btn-primary" id="batchAiBtn" onclick="openBatchAiModal()" style="display: none; padding: 8px 15px; font-size: 13px;">🤖 批量AI补充</button>
@@ -1791,7 +1722,7 @@
                 <div class="form-group">
                     <label>请输入书籍关键词（书名、作者、ISBN等）</label>
                     <input type="text" id="aiSearchQuery" placeholder="例如：深入理解计算机系统" style="width: 100%;">
-                    <small style="color: #666; display: block; margin-top: 5px;">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                         提示：输入更完整的信息可以获得更准确的结果
                     </small>
                 </div>
@@ -1833,7 +1764,7 @@
                         <option value="missing_info">仅补充缺失信息的书籍（推荐）</option>
                         <option value="all">所有书籍（谨慎使用）</option>
                     </select>
-                    <small style="color: #666; display: block; margin-top: 5px;">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                         提示：批量处理会调用AI服务，建议先选择"缺失信息"范围测试
                     </small>
                 </div>
@@ -1841,7 +1772,7 @@
                 <div class="form-group">
                     <label>批处理数量限制</label>
                     <input type="number" id="batchAiLimit" value="50" min="1" style="width: 100%; padding: 8px;">
-                    <small style="color: #666; display: block; margin-top: 5px;">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                         单次最多处理的书籍数量，建议从小数量开始测试
                     </small>
                 </div>
@@ -1851,13 +1782,13 @@
                         <strong>处理进度：</strong>
                         <span id="batchAiProgressText">0/0</span>
                     </div>
-                    <div style="background: #f0f0f0; border-radius: 5px; overflow: hidden; height: 30px;">
+                    <div style="background: var(--secondary-bg); border-radius: 5px; overflow: hidden; height: 30px;">
                         <div id="batchAiProgressBar" style="height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s;"></div>
                     </div>
-                    <div id="batchAiCurrentBook" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+                    <div id="batchAiCurrentBook" style="margin-top: 10px; font-size: 14px; color: var(--text-secondary);"></div>
                 </div>
                 
-                <div id="batchAiLog" style="display: none; margin-top: 20px; max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+                <div id="batchAiLog" style="display: none; margin-top: 20px; max-height: 300px; overflow-y: auto; background: var(--secondary-bg); padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px;">
                 </div>
                 
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
@@ -1886,7 +1817,7 @@
                         <input type="checkbox" id="autoFillEnabled" onchange="updateAutoFillConfig()" style="width: 18px; height: 18px; cursor: pointer;">
                         <span style="font-weight: normal; margin: 0;">启用后台自动补充</span>
                     </label>
-                    <small style="color: #666; display: block; margin-top: 5px; margin-left: 28px;">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px; margin-left: 28px;">
                         系统空闲时自动补充书籍信息，检测到用户操作时暂停
                     </small>
                 </div>
@@ -1894,7 +1825,7 @@
                 <div class="form-group">
                     <label>空闲时间阈值（秒）</label>
                     <input type="number" id="autoFillIdleThreshold" value="300" min="60" style="width: 100%; padding: 8px;" onchange="updateAutoFillConfig()">
-                    <small style="color: #666; display: block; margin-top: 5px;">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                         系统无操作多少秒后视为空闲（默认300秒=5分钟）
                     </small>
                 </div>
@@ -1902,7 +1833,7 @@
                 <div class="form-group">
                     <label>每批处理数量</label>
                     <input type="number" id="autoFillBatchSize" value="10" min="1" max="50" style="width: 100%; padding: 8px;" onchange="updateAutoFillConfig()">
-                    <small style="color: #666; display: block; margin-top: 5px;">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                         每次自动处理的书籍数量
                     </small>
                 </div>
@@ -1910,12 +1841,12 @@
                 <div class="form-group">
                     <label>检查间隔（秒）</label>
                     <input type="number" id="autoFillInterval" value="60" min="30" style="width: 100%; padding: 8px;" onchange="updateAutoFillConfig()">
-                    <small style="color: #666; display: block; margin-top: 5px;">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                         每隔多少秒检查一次是否需要启动任务
                     </small>
                 </div>
                 
-                <div id="autoFillStatus" style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px;">
+                <div id="autoFillStatus" style="margin-top: 20px; padding: 15px; background: var(--secondary-bg); border-radius: 5px;">
                     <div><strong>当前状态：</strong><span id="autoFillStatusText">未启用</span></div>
                     <div style="margin-top: 5px;"><strong>最后活动：</strong><span id="autoFillLastActivity">-</span></div>
                 </div>
@@ -1949,26 +1880,24 @@
         console.log('=== 变量初始化完成 ===');
 
         // 主题管理
-        function switchTheme(theme) {
-            // 移除所有主题，如果不是classic则添加新主题
-            document.body.removeAttribute('data-theme');
-            if (theme !== 'classic') {
-                document.body.setAttribute('data-theme', theme);
-            }
-            
-            // 保存主题选择
+        function applyTheme(theme) {
+            document.body.setAttribute('data-theme', theme);
             localStorage.setItem('theme', theme);
-            
-            // 更新按钮状态
-            document.querySelectorAll('.theme-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.theme === theme);
-            });
+            const icon = document.getElementById('themeIcon');
+            if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+
+        function toggleTheme() {
+            const current = localStorage.getItem('theme') || 'light';
+            applyTheme(current === 'dark' ? 'light' : 'dark');
         }
 
         // 加载保存的主题
         function loadTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'classic';
-            switchTheme(savedTheme);
+            const saved = localStorage.getItem('theme') || 'light';
+            // 将旧主题名映射到新主题
+            const theme = (saved === 'dark') ? 'dark' : 'light';
+            applyTheme(theme);
         }
 
         // 初始化

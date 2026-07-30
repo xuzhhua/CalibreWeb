@@ -5,6 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calibre 书库差异分析</title>
     <style>
+        :root {
+            --page-bg: linear-gradient(135deg, #e8ecff 0%, #f0e8ff 100%);
+            --card-bg: #ffffff;
+            --card-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border-color: #dddddd;
+            --border-light: #eeeeee;
+            --secondary-bg: #f5f5f5;
+            --secondary-bg2: #e0e0e0;
+            --hover-bg: #f9f9f9;
+            --accent: #667eea;
+            --stat-card-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --btn-primary-bg: #667eea;
+            --btn-primary-hover: #5568d3;
+            --btn-back-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --progress-fill-bg: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            --progress-step-bg: #ffffff;
+            --progress-step-active-bg: #e8f0fe;
+            --progress-step-active-border: #667eea;
+            --progress-step-done-bg: #e8f5e9;
+            --progress-step-done-border: #4caf50;
+            --spinner-track: #f3f3f3;
+            --spinner-color: #667eea;
+            --badge-missing-bg: #fef2f2;
+            --badge-missing-color: #c00;
+            --badge-ok-bg: #f0fdf4;
+            --badge-ok-color: #0a0;
+            /* 危险/删除按钮 */
+            --btn-danger-bg: #e74c3c;
+            --btn-danger-hover-bg: #c0392b;
+            --btn-danger-color: #ffffff;
+            /* 次要/取消按钮 */
+            --btn-secondary-bg: #95a5a6;
+            --btn-secondary-hover-bg: #7f8c8d;
+            --btn-secondary-color: #ffffff;
+        }
+
+        body[data-theme="dark"] {
+            --page-bg: linear-gradient(135deg, #2a2a3e 0%, #181825 100%);
+            --card-bg: #252535;
+            --card-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            --text-primary: #cdd6f4;
+            --text-secondary: #a6adc8;
+            --text-muted: #6e6e80;
+            --border-color: #3a3a50;
+            --border-light: #3a3a50;
+            --secondary-bg: #2a2a3e;
+            --secondary-bg2: #313145;
+            --hover-bg: #2a2a3e;
+            --accent: #89b4fa;
+            --stat-card-bg: linear-gradient(135deg, #313155 0%, #252545 100%);
+            --btn-primary-bg: #454576;
+            --btn-primary-hover: #3a3a66;
+            --btn-back-bg: linear-gradient(135deg, #454576 0%, #3a3a66 100%);
+            --progress-fill-bg: linear-gradient(90deg, #454576 0%, #3a3a66 100%);
+            --progress-step-bg: #252535;
+            --progress-step-active-bg: #2a3050;
+            --progress-step-active-border: #89b4fa;
+            --progress-step-done-bg: #1e3a2f;
+            --progress-step-done-border: #a6e3a1;
+            --spinner-track: #3a3a50;
+            --spinner-color: #89b4fa;
+            --badge-missing-bg: #3a1e2e;
+            --badge-missing-color: #f38ba8;
+            --badge-ok-bg: #1e3a2f;
+            --badge-ok-color: #a6e3a1;
+            /* 危险/删除按钮 */
+            --btn-danger-bg: #3a1e1e;
+            --btn-danger-hover-bg: #5a2d2d;
+            --btn-danger-color: #f38ba8;
+            /* 次要/取消按钮 */
+            --btn-secondary-bg: #45475a;
+            --btn-secondary-hover-bg: #585b70;
+            --btn-secondary-color: #cdd6f4;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,7 +91,8 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--page-bg);
+            color: var(--text-primary);
             min-height: 100vh;
             padding: 20px;
         }
@@ -21,14 +100,14 @@
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
+            background: var(--card-bg);
             border-radius: 10px;
             padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: var(--card-shadow);
         }
         
         h1 {
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 30px;
             text-align: center;
         }
@@ -41,7 +120,7 @@
         }
         
         .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--stat-card-bg);
             color: white;
             padding: 20px;
             border-radius: 8px;
@@ -64,29 +143,29 @@
         }
         
         .section h2 {
-            color: #667eea;
+            color: var(--accent);
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid var(--accent);
         }
         
         .book-list {
             max-height: 400px;
             overflow-y: auto;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border-color);
             border-radius: 5px;
         }
         
         .book-item {
             padding: 15px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border-light);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         
         .book-item:hover {
-            background: #f9f9f9;
+            background: var(--hover-bg);
         }
         
         .book-info {
@@ -95,12 +174,12 @@
         
         .book-title {
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 5px;
         }
         
         .book-author {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 14px;
         }
         
@@ -118,13 +197,13 @@
         }
         
         .badge.missing {
-            background: #fee;
-            color: #c00;
+            background: var(--badge-missing-bg);
+            color: var(--badge-missing-color);
         }
         
         .badge.ok {
-            background: #efe;
-            color: #0a0;
+            background: var(--badge-ok-bg);
+            color: var(--badge-ok-color);
         }
         
         .actions {
@@ -144,30 +223,30 @@
         }
         
         button.primary {
-            background: #667eea;
+            background: var(--btn-primary-bg);
             color: white;
         }
         
         button.primary:hover {
-            background: #5568d3;
+            background: var(--btn-primary-hover);
         }
         
         button.danger {
-            background: #e74c3c;
-            color: white;
+            background: var(--btn-danger-bg);
+            color: var(--btn-danger-color);
         }
         
         button.danger:hover {
-            background: #c0392b;
+            background: var(--btn-danger-hover-bg);
         }
         
         button.secondary {
-            background: #95a5a6;
-            color: white;
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-color);
         }
         
         button.secondary:hover {
-            background: #7f8c8d;
+            background: var(--btn-secondary-hover-bg);
         }
         
         button:disabled {
@@ -178,18 +257,18 @@
         .loading {
             text-align: center;
             padding: 40px;
-            color: #666;
+            color: var(--text-secondary);
         }
         
         .loading h2 {
-            color: #667eea;
+            color: var(--accent);
             margin-bottom: 20px;
         }
         
         .progress-container {
             max-width: 600px;
             margin: 20px auto;
-            background: #f5f5f5;
+            background: var(--secondary-bg);
             border-radius: 10px;
             padding: 20px;
         }
@@ -197,7 +276,7 @@
         .progress-bar {
             width: 100%;
             height: 30px;
-            background: #e0e0e0;
+            background: var(--secondary-bg2);
             border-radius: 15px;
             overflow: hidden;
             position: relative;
@@ -206,7 +285,7 @@
         
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: var(--progress-fill-bg);
             border-radius: 15px;
             transition: width 0.5s ease;
             display: flex;
@@ -225,7 +304,7 @@
         .progress-step {
             padding: 10px;
             margin: 5px 0;
-            background: white;
+            background: var(--progress-step-bg);
             border-radius: 5px;
             display: flex;
             align-items: center;
@@ -233,13 +312,13 @@
         }
         
         .progress-step.active {
-            background: #e8f0fe;
-            border-left: 3px solid #667eea;
+            background: var(--progress-step-active-bg);
+            border-left: 3px solid var(--progress-step-active-border);
         }
         
         .progress-step.completed {
-            background: #e8f5e9;
-            border-left: 3px solid #4caf50;
+            background: var(--progress-step-done-bg);
+            border-left: 3px solid var(--progress-step-done-border);
         }
         
         .step-icon {
@@ -248,12 +327,12 @@
         
         .step-text {
             flex: 1;
-            color: #333;
+            color: var(--text-primary);
         }
         
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border: 3px solid var(--spinner-track);
+            border-top: 3px solid var(--spinner-color);
             border-radius: 50%;
             width: 20px;
             height: 20px;
@@ -269,7 +348,7 @@
         .empty {
             text-align: center;
             padding: 40px;
-            color: #999;
+            color: var(--text-muted);
         }
         
         .checkbox-wrapper {
@@ -291,7 +370,7 @@
         
         .btn-back {
             padding: 10px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--btn-back-bg);
             color: white;
             border: none;
             border-radius: 5px;
@@ -310,6 +389,12 @@
     </style>
 </head>
 <body>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', saved === 'dark' ? 'dark' : 'light');
+        })();
+    </script>
     <div class="container">
         <div class="header-actions">
             <button class="btn-back" onclick="goBack()">
@@ -617,5 +702,6 @@
         // 页面加载时自动分析
         loadDiff();
     </script>
+    </div>
 </body>
 </html>

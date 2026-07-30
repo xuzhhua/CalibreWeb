@@ -4,6 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calibre Web - 注册</title>    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">    <style>
+        :root {
+            --page-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --input-bg: #ffffff;
+            --input-border: #e0e0e0;
+            --input-focus-border: #667eea;
+            --input-focus-shadow: rgba(102, 126, 234, 0.1);
+            --accent: #667eea;
+            --btn-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --alert-error-bg: #fef2f2;
+            --alert-error-color: #c33;
+            --alert-error-border: #fecaca;
+            --alert-success-bg: #f0fdf4;
+            --alert-success-color: #3c3;
+            --alert-success-border: #a7f3d0;
+        }
+
+        body[data-theme="dark"] {
+            --page-bg: linear-gradient(135deg, #2a2a3e 0%, #181825 100%);
+            --card-bg: #252535;
+            --text-primary: #cdd6f4;
+            --text-secondary: #a6adc8;
+            --input-bg: #2a2a3e;
+            --input-border: #3a3a50;
+            --input-focus-border: #89b4fa;
+            --input-focus-shadow: rgba(137, 180, 250, 0.12);
+            --accent: #89b4fa;
+            --btn-bg: linear-gradient(135deg, #454576 0%, #3a3a66 100%);
+            --alert-error-bg: #3a1e2e;
+            --alert-error-color: #f38ba8;
+            --alert-error-border: #5a2d40;
+            --alert-success-bg: #1e3a2f;
+            --alert-success-color: #a6e3a1;
+            --alert-success-border: #2d5a45;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,7 +50,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--page-bg);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -20,7 +58,7 @@
         }
 
         .register-container {
-            background: white;
+            background: var(--card-bg);
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             width: 100%;
@@ -34,13 +72,13 @@
         }
 
         .logo h1 {
-            color: #667eea;
+            color: var(--accent);
             font-size: 32px;
             margin-bottom: 10px;
         }
 
         .logo p {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 14px;
         }
 
@@ -51,29 +89,31 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #333;
+            color: var(--text-primary);
             font-weight: 500;
         }
 
         .form-group input {
             width: 100%;
             padding: 12px 15px;
-            border: 2px solid #e0e0e0;
+            border: 2px solid var(--input-border);
             border-radius: 10px;
             font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
             transition: all 0.3s;
         }
 
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: var(--input-focus-border);
+            box-shadow: 0 0 0 3px var(--input-focus-shadow);
         }
 
         .btn {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--btn-bg);
             color: white;
             border: none;
             border-radius: 10px;
@@ -98,7 +138,7 @@
         }
 
         .links a {
-            color: #667eea;
+            color: var(--accent);
             text-decoration: none;
             font-size: 14px;
         }
@@ -115,19 +155,25 @@
         }
 
         .alert-error {
-            background-color: #fee;
-            color: #c33;
-            border: 1px solid #fcc;
+            background-color: var(--alert-error-bg);
+            color: var(--alert-error-color);
+            border: 1px solid var(--alert-error-border);
         }
 
         .alert-success {
-            background-color: #efe;
-            color: #3c3;
-            border: 1px solid #cfc;
+            background-color: var(--alert-success-bg);
+            color: var(--alert-success-color);
+            border: 1px solid var(--alert-success-border);
         }
     </style>
 </head>
 <body>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', saved === 'dark' ? 'dark' : 'light');
+        })();
+    </script>
     <div class="register-container">
         <div class="logo">
             <h1>📚 Calibre Web</h1>

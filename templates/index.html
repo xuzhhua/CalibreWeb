@@ -4,6 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calibre Web - 欢迎</title>    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">    <style>
+        :root {
+            --page-bg: linear-gradient(135deg, #e8ecff 0%, #f0e8ff 100%);
+            --btn-primary-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --btn-primary-color: #ffffff;
+            --hero-text: #2a2a4e;
+            --btn-secondary-bg: rgba(102, 126, 234, 0.1);
+            --btn-secondary-border: #667eea;
+            --btn-secondary-color: #667eea;
+        }
+
+        body[data-theme="dark"] {
+            --page-bg: linear-gradient(135deg, #2a2a3e 0%, #181825 100%);
+            --btn-primary-bg: linear-gradient(135deg, #454576 0%, #3a3a66 100%);
+            --btn-primary-color: #ffffff;
+            --hero-text: #ffffff;
+            --btn-secondary-bg: rgba(255, 255, 255, 0.2);
+            --btn-secondary-border: rgba(255, 255, 255, 0.8);
+            --btn-secondary-color: #ffffff;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,7 +32,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--page-bg);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -21,7 +41,7 @@
 
         .hero {
             text-align: center;
-            color: white;
+            color: var(--hero-text);
             max-width: 800px;
             padding: 40px;
         }
@@ -55,14 +75,14 @@
         }
 
         .btn-primary {
-            background: white;
-            color: #667eea;
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-color);
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 2px solid white;
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-color);
+            border: 2px solid var(--btn-secondary-border);
         }
 
         .btn:hover {
@@ -95,9 +115,15 @@
             font-size: 14px;
             opacity: 0.9;
         }
-    </style>
+</style>
 </head>
 <body>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', saved === 'dark' ? 'dark' : 'light');
+        })();
+    </script>
     <div class="hero">
         <h1>📚 Calibre Web</h1>
         <p>优雅、现代化的个人数字图书馆管理系统</p>
