@@ -16,8 +16,8 @@ from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
 
-# 加载环境变量
-load_dotenv()
+# 加载环境变量（override=True 确保 .env 文件优先于系统环境变量）
+load_dotenv(override=True)
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
@@ -32,11 +32,27 @@ app.config['CALIBRE_LIBRARY_PATH'] = os.environ.get('CALIBRE_LIBRARY_PATH', '')
 app.config['USE_CALIBRE_DB'] = os.environ.get('USE_CALIBRE_DB', 'False').lower() == 'true'
 
 # AI辅助功能配置
+# AI服务提供商选择：'ollama' 或 'lmstudio'（二选一）
+app.config['AI_PROVIDER'] = os.environ.get('AI_PROVIDER', 'ollama').lower()
+
+# Ollama配置
 app.config['OLLAMA_BASE_URL'] = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
 app.config['OLLAMA_MODEL'] = os.environ.get('OLLAMA_MODEL', 'qwen2.5:latest')
 app.config['OLLAMA_TIMEOUT'] = int(os.environ.get('OLLAMA_TIMEOUT', '60'))
+
+# LM Studio配置（OpenAI兼容API）
+app.config['LMSTUDIO_BASE_URL'] = os.environ.get('LMSTUDIO_BASE_URL', 'http://localhost:1234')
+app.config['LMSTUDIO_MODEL'] = os.environ.get('LMSTUDIO_MODEL', 'auto')
+app.config['LMSTUDIO_TIMEOUT'] = int(os.environ.get('LMSTUDIO_TIMEOUT', '60'))
+
+# SearXNG配置
 app.config['SEARXNG_BASE_URL'] = os.environ.get('SEARXNG_BASE_URL', 'http://localhost:8080')
 app.config['SEARXNG_ENABLED'] = os.environ.get('SEARXNG_ENABLED', 'True').lower() == 'true'
+
+# 打印AI配置（调试用）
+print(f"[启动] AI_PROVIDER={app.config['AI_PROVIDER']}")
+print(f"[启动] OLLAMA_BASE_URL={app.config['OLLAMA_BASE_URL']}, OLLAMA_MODEL={app.config['OLLAMA_MODEL']}")
+print(f"[启动] LMSTUDIO_BASE_URL={app.config['LMSTUDIO_BASE_URL']}, LMSTUDIO_MODEL={app.config['LMSTUDIO_MODEL']}")
 
 db = SQLAlchemy(app)
 
@@ -2347,6 +2363,128 @@ def init_db():
 
 # ==================== AI辅助功能 ====================
 
+def call_llm(prompt, system_prompt=None, format_json=False, temperature=0.7, top_p=0.9):
+    """
+    统一的LLM调用函数，根据AI_PROVIDER配置自动选择Ollama或LM Studio
+    
+    参数:
+        prompt: 用户提示词
+        system_prompt: 系统提示词（仅LM Studio支持，Ollama会拼接到prompt前）
+        format_json: 是否要求JSON格式输出
+        temperature: 温度参数
+        top_p: top_p参数
+    
+    返回:
+        (success, response_text, error_message)
+    """
+    import requests
+    
+    provider = app.config['AI_PROVIDER']
+    
+    if app.debug:
+        print(f"[call_llm] AI_PROVIDER={provider}, OLLAMA_BASE_URL={app.config['OLLAMA_BASE_URL']}, LMSTUDIO_BASE_URL={app.config['LMSTUDIO_BASE_URL']}")
+    
+    if provider == 'lmstudio':
+        # LM Studio使用OpenAI兼容API
+        base_url = app.config['LMSTUDIO_BASE_URL'].rstrip('/')
+        model = app.config['LMSTUDIO_MODEL']
+        timeout = app.config['LMSTUDIO_TIMEOUT']
+        
+        messages = []
+        if system_prompt:
+            messages.append({'role': 'system', 'content': system_prompt})
+        messages.append({'role': 'user', 'content': prompt})
+        
+        payload = {
+            'model': model,
+            'messages': messages,
+            'temperature': temperature,
+            'top_p': top_p,
+            'stream': False
+        }
+        # LM Studio部分模型不支持json_object，使用json_schema
+        if format_json:
+            payload['response_format'] = {
+                'type': 'json_schema',
+                'json_schema': {
+                    'name': 'response',
+                    'schema': {
+                        'type': 'object',
+                        'properties': {
+                            'title': {'type': 'string'},
+                            'author': {'type': 'string'},
+                            'publisher': {'type': 'string'},
+                            'isbn': {'type': 'string'},
+                            'publication_date': {'type': 'string'},
+                            'description': {'type': 'string'},
+                            'language': {'type': 'string'},
+                            'tags': {'type': 'string'}
+                        }
+                    }
+                }
+            }
+        
+        try:
+            response = requests.post(
+                f"{base_url}/v1/chat/completions",
+                json=payload,
+                timeout=timeout
+            )
+            if response.status_code == 200:
+                result = response.json()
+                content = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                return True, content, None
+            else:
+                return False, None, f'LM Studio API错误(HTTP {response.status_code}): {response.text[:500]}'
+        except requests.exceptions.Timeout:
+            return False, None, 'LM Studio请求超时，请稍后重试'
+        except requests.exceptions.ConnectionError:
+            return False, None, f'无法连接到LM Studio服务({base_url})，请检查配置'
+        except Exception as e:
+            return False, None, f'LM Studio调用异常: {str(e)}'
+    
+    else:
+        # Ollama API
+        base_url = app.config['OLLAMA_BASE_URL'].rstrip('/')
+        model = app.config['OLLAMA_MODEL']
+        timeout = app.config['OLLAMA_TIMEOUT']
+        
+        full_prompt = prompt
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+        
+        payload = {
+            'model': model,
+            'prompt': full_prompt,
+            'stream': False,
+            'options': {
+                'temperature': temperature,
+                'top_p': top_p,
+            }
+        }
+        if format_json:
+            payload['format'] = 'json'
+        
+        try:
+            response = requests.post(
+                f"{base_url}/api/generate",
+                json=payload,
+                timeout=timeout
+            )
+            if response.status_code == 200:
+                result = response.json()
+                content = result.get('response', '')
+                return True, content, None
+            else:
+                return False, None, f'Ollama API错误(HTTP {response.status_code}): {response.text[:500]}'
+        except requests.exceptions.Timeout:
+            return False, None, 'Ollama请求超时，请稍后重试'
+        except requests.exceptions.ConnectionError:
+            return False, None, f'无法连接到Ollama服务({base_url})，请检查配置'
+        except Exception as e:
+            return False, None, f'Ollama调用异常: {str(e)}'
+
+
 @app.route('/api/ai/search-book-info', methods=['POST'])
 @login_required
 def api_ai_search_book_info():
@@ -2359,8 +2497,11 @@ def api_ai_search_book_info():
             return jsonify({'error': '请提供搜索关键词'}), 400
         
         # 检查配置
-        if not app.config['OLLAMA_BASE_URL']:
+        provider = app.config['AI_PROVIDER']
+        if provider == 'ollama' and not app.config['OLLAMA_BASE_URL']:
             return jsonify({'error': 'Ollama未配置'}), 500
+        if provider == 'lmstudio' and not app.config['LMSTUDIO_BASE_URL']:
+            return jsonify({'error': 'LM Studio未配置'}), 500
         
         import requests
         
@@ -2388,7 +2529,7 @@ def api_ai_search_book_info():
                 if app.debug:
                     print(f"SearXNG搜索失败: {e}")
         
-        # 2. 构建Ollama提示词
+        # 2. 构建提示词
         system_prompt = """你是一个图书信息助手。根据提供的信息，以JSON格式返回书籍的详细信息。
         
 返回的JSON格式必须严格遵循以下结构：
@@ -2414,32 +2555,20 @@ def api_ai_search_book_info():
         if search_results:
             user_prompt += f"\n\n网络搜索结果:\n{search_results}"
         
-        # 3. 调用Ollama API
-        ollama_url = f"{app.config['OLLAMA_BASE_URL']}/api/generate"
-        payload = {
-            'model': app.config['OLLAMA_MODEL'],
-            'prompt': f"{system_prompt}\n\n{user_prompt}",
-            'stream': False,
-            'options': {
-                'temperature': 0.7,
-                'top_p': 0.9,
-            }
-        }
-        
+        # 3. 调用LLM
         if app.debug:
-            print(f"调用Ollama: {app.config['OLLAMA_MODEL']}")
+            provider = app.config['AI_PROVIDER']
+            model = app.config['OLLAMA_MODEL'] if provider == 'ollama' else app.config['LMSTUDIO_MODEL']
+            print(f"调用LLM ({provider}): {model}")
         
-        response = requests.post(
-            ollama_url,
-            json=payload,
-            timeout=app.config['OLLAMA_TIMEOUT']
+        success, ai_response, error = call_llm(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            format_json=True
         )
         
-        if response.status_code != 200:
-            return jsonify({'error': f'Ollama API错误: {response.text}'}), 500
-        
-        result = response.json()
-        ai_response = result.get('response', '')
+        if not success:
+            return jsonify({'error': error}), 500
         
         if app.debug:
             print(f"AI响应: {ai_response[:200]}...")
@@ -2530,7 +2659,7 @@ def api_ai_search_book_info():
     except requests.exceptions.Timeout:
         return jsonify({'error': 'AI请求超时，请稍后重试'}), 504
     except requests.exceptions.ConnectionError:
-        return jsonify({'error': '无法连接到Ollama服务，请检查配置'}), 503
+        return jsonify({'error': '无法连接到AI服务，请检查配置'}), 503
     except Exception as e:
         if app.debug:
             import traceback
@@ -2545,20 +2674,37 @@ def api_ai_config():
     try:
         import requests
         
-        # 检查Ollama连接
-        ollama_status = 'disconnected'
-        ollama_models = []
-        if app.config['OLLAMA_BASE_URL']:
-            try:
-                resp = requests.get(
-                    f"{app.config['OLLAMA_BASE_URL']}/api/tags",
-                    timeout=5
-                )
-                if resp.status_code == 200:
-                    ollama_status = 'connected'
-                    ollama_models = [m['name'] for m in resp.json().get('models', [])]
-            except:
-                pass
+        provider = app.config['AI_PROVIDER']
+        
+        # 检查LLM连接
+        llm_status = 'disconnected'
+        llm_models = []
+        
+        if provider == 'ollama':
+            if app.config['OLLAMA_BASE_URL']:
+                try:
+                    resp = requests.get(
+                        f"{app.config['OLLAMA_BASE_URL']}/api/tags",
+                        timeout=5
+                    )
+                    if resp.status_code == 200:
+                        llm_status = 'connected'
+                        llm_models = [m['name'] for m in resp.json().get('models', [])]
+                except:
+                    pass
+        elif provider == 'lmstudio':
+            if app.config['LMSTUDIO_BASE_URL']:
+                try:
+                    resp = requests.get(
+                        f"{app.config['LMSTUDIO_BASE_URL']}/v1/models",
+                        timeout=5
+                    )
+                    if resp.status_code == 200:
+                        llm_status = 'connected'
+                        llm_models_data = resp.json().get('data', [])
+                        llm_models = [m.get('id', '') for m in llm_models_data]
+                except:
+                    pass
         
         # 检查SearXNG连接
         searxng_status = 'disabled'
@@ -2575,19 +2721,28 @@ def api_ai_config():
             except:
                 searxng_status = 'disconnected'
         
-        return jsonify({
-            'ollama': {
-                'status': ollama_status,
-                'base_url': app.config['OLLAMA_BASE_URL'],
-                'model': app.config['OLLAMA_MODEL'],
-                'available_models': ollama_models
+        result = {
+            'provider': provider,
+            'llm': {
+                'status': llm_status,
+                'base_url': app.config['OLLAMA_BASE_URL'] if provider == 'ollama' else app.config['LMSTUDIO_BASE_URL'],
+                'model': app.config['OLLAMA_MODEL'] if provider == 'ollama' else app.config['LMSTUDIO_MODEL'],
+                'available_models': llm_models
             },
             'searxng': {
                 'status': searxng_status,
                 'enabled': app.config['SEARXNG_ENABLED'],
                 'base_url': app.config['SEARXNG_BASE_URL']
             }
-        }), 200
+        }
+        
+        # 向后兼容：保留ollama字段
+        if provider == 'ollama':
+            result['ollama'] = result['llm']
+        else:
+            result['lmstudio'] = result['llm']
+        
+        return jsonify(result), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2908,7 +3063,7 @@ def process_batch_ai_task(task_id):
                         except:
                             pass
                     
-                    # 构建Ollama提示
+                    # 构建LLM提示
                     search_section = f'搜索结果:\n{search_results}\n' if search_results else ''
                     prompt = f"""请根据以下信息，帮我整理这本书的详细信息：
 
@@ -2928,22 +3083,13 @@ def process_batch_ai_task(task_id):
 
 只返回JSON，不要其他内容。"""
                     
-                    # 调用Ollama
-                    resp = requests.post(
-                        f"{app.config['OLLAMA_BASE_URL']}/api/generate",
-                        json={
-                            'model': app.config['OLLAMA_MODEL'],
-                            'prompt': prompt,
-                            'stream': False,
-                            'format': 'json'
-                        },
-                        timeout=app.config['OLLAMA_TIMEOUT']
+                    # 调用LLM
+                    success, response_text, error = call_llm(
+                        prompt=prompt,
+                        format_json=True
                     )
                     
-                    if resp.status_code == 200:
-                        result = resp.json()
-                        response_text = result.get('response', '{}')
-                        
+                    if success and response_text:
                         import json
                         book_info = json.loads(response_text)
                         
@@ -3034,7 +3180,7 @@ def process_batch_ai_task(task_id):
                         
                     else:
                         task['failed_count'] += 1
-                        add_log(f'✗ {task["current_book"]} - AI调用失败', 'error')
+                        add_log(f'✗ {task["current_book"]} - AI调用失败: {error}', 'error')
                 
                 except Exception as e:
                     task['failed_count'] += 1
